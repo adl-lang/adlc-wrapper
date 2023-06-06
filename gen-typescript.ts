@@ -1,10 +1,9 @@
-export interface GenTypescriptParams {
-  adlFiles: string[];
-  searchPath: string[];
+import { AdlSourceParams, compilerSourceArgsFromParams } from "./utils/sources.ts";
+
+export interface GenTypescriptParams extends AdlSourceParams {
   outputDir: string;
   runtimeDir: string;
 
-  mergeAdlExts?: string[];
   verbose?: boolean;
   noOverwrite?: boolean;
   manifest?: string;
@@ -18,16 +17,11 @@ export interface GenTypescriptParams {
 
 export async function genTypescript(params: GenTypescriptParams) {
   let cmd: string[] = ["adlc", "typescript"];
-  params.searchPath.forEach((dir) => {
-    cmd = cmd.concat(["--searchdir", dir]);
-  });
+  
   cmd = cmd.concat(["--outputdir", params.outputDir]);
   cmd = cmd.concat(["--runtime-dir", params.runtimeDir]);
 
-  const mergeAdlExts = params.mergeAdlExts || [];
-  mergeAdlExts.forEach((ext) => {
-    cmd = cmd.concat(["--merge-adlext", ext]);
-  });
+
 
   if (params.verbose) {
     cmd.push("--verbose");
@@ -59,7 +53,10 @@ export async function genTypescript(params: GenTypescriptParams) {
       params.excludeAstAnnotations.join(","),
     ]);
   }
-  cmd = cmd.concat(params.adlFiles);
+
+  const sourceArgs = await compilerSourceArgsFromParams(params);
+  cmd = cmd.concat(sourceArgs);
+
   if (params.verbose) {
     console.log("Executing", cmd);
   }

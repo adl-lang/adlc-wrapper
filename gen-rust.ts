@@ -1,11 +1,10 @@
-export interface GenRustParams {
-  adlFiles: string[];
-  searchPath: string[];
+import { AdlSourceParams, compilerSourceArgsFromParams } from "./utils/sources.ts";
+
+export interface GenRustParams extends AdlSourceParams{
   outputDir: string;
   module: string;
   runtimeModule: string;
 
-  mergeAdlExts?: string[];
   verbose?: boolean;
   noOverwrite?: boolean;
   manifest?: string;
@@ -15,18 +14,9 @@ export interface GenRustParams {
 
 export async function genRust(params: GenRustParams) {
   let cmd: string[] = ["adlc", "rust"];
-  params.searchPath.forEach((dir) => {
-    cmd = cmd.concat(["--searchdir", dir]);
-  });
   cmd = cmd.concat(["--outputdir", params.outputDir]);
   cmd = cmd.concat(["--module", params.module]);
-
   cmd = cmd.concat(["--runtime-module", params.runtimeModule]);
-
-  const mergeAdlExts = params.mergeAdlExts || [];
-  mergeAdlExts.forEach((ext) => {
-    cmd = cmd.concat(["--merge-adlext", ext]);
-  });
 
   if (params.verbose) {
     cmd.push("--verbose");
@@ -43,7 +33,9 @@ export async function genRust(params: GenRustParams) {
   if (params.includeRuntime) {
     cmd.push("--include-rt");
   }
-  cmd = cmd.concat(params.adlFiles);
+  const sourceArgs = await compilerSourceArgsFromParams(params);
+  cmd = cmd.concat(sourceArgs);
+
   if (params.verbose) {
     console.log("Executing", cmd);
   }

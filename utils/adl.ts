@@ -1,6 +1,6 @@
 import * as adlast from "../adl-gen/sys/adlast.ts";
 import { ADL as SYSDECLS, RESOLVER } from "../adl-gen/resolver.ts";
-import { createJsonBinding, JsonBinding } from "../adl-gen/runtime/json.ts";
+import { createJsonBinding } from "../adl-gen/runtime/json.ts";
 import * as adl from "../adl-gen/runtime/adl.ts";
 import { typeExprToString } from "../adl-gen/runtime/utils.ts";
 

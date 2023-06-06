@@ -1,10 +1,9 @@
-export interface GenJavaParams {
-  adlFiles: string[];
-  searchPath: string[];
+import { AdlSourceParams, compilerSourceArgsFromParams } from "./utils/sources.ts";
+
+export interface GenJavaParams extends AdlSourceParams {
   package: string;
   outputDir: string;
 
-  mergeAdlExts?: string[];
   verbose?: boolean;
   noOverwrite?: boolean;
   manifest?: string;
@@ -17,16 +16,8 @@ export interface GenJavaParams {
 
 export async function genJava(params: GenJavaParams) {
   let cmd: string[] = ["adlc", "java"];
-  params.searchPath.forEach((dir) => {
-    cmd = cmd.concat(["--searchdir", dir]);
-  });
   cmd = cmd.concat(["--package", params.package]);
   cmd = cmd.concat(["--outputdir", params.outputDir]);
-
-  const mergeAdlExts = params.mergeAdlExts || [];
-  mergeAdlExts.forEach((ext) => {
-    cmd = cmd.concat(["--merge-adlext", ext]);
-  });
 
   if (params.verbose) {
     cmd.push("--verbose");
@@ -55,7 +46,9 @@ export async function genJava(params: GenJavaParams) {
       params.suppressWarningsAnnotation,
     ]);
   }
-  cmd = cmd.concat(params.adlFiles);
+
+  const sourceArgs = await compilerSourceArgsFromParams(params);
+  cmd = cmd.concat(sourceArgs);
   if (params.verbose) {
     console.log("Executing", cmd);
   }
