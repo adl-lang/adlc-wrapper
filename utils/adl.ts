@@ -3,6 +3,7 @@ import { ADL as SYSDECLS, RESOLVER } from "../adl-gen/resolver.ts";
 import { createJsonBinding } from "../adl-gen/runtime/json.ts";
 import * as adl from "../adl-gen/runtime/adl.ts";
 import { typeExprToString } from "../adl-gen/runtime/utils.ts";
+import { getAdlModuleFile } from "./sources.ts";
 
 type AdlModuleMap = { [key: string]: adlast.Module };
 
@@ -17,13 +18,33 @@ export interface ParseAdlOptions {
 }
 
 /**
+ * Load and parse the specified ADL modules (and their dependencies) into
+ * an adlast map.
+ *
+ * Runs the adl compiler as a subprocess, using the environment variable ADLC to
+ * specify the path.
+ */
+export async function parseAdlModules(
+  adlModules: string[],
+  adlSearchPath: string[],
+  options?: ParseAdlOptions
+) {
+    // Map the adl modules to their underlying files
+    const adlFiles: string[] = [];
+    for(const m of adlModules) {
+      adlFiles.push(await getAdlModuleFile(adlSearchPath, m));
+    }
+    return parseAdlFiles(adlFiles, adlSearchPath, options);
+}
+
+/**
  * Load and parse the specified ADL files (and their dependencies) into
  * an adlast map.
  *
  * Runs the adl compiler as a subprocess, using the environment variable ADLC to
  * specify the path.
  */
-export async function parseAdl(
+export async function parseAdlFiles(
   adlFiles: string[],
   adlSearchPath: string[],
   options?: ParseAdlOptions,
