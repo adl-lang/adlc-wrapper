@@ -35,7 +35,7 @@ export async function compilerSourceArgsFromParams(params: AdlSourceParams) : Pr
 }
 
 export async function getAdlModuleFile(searchPath: string[], module: string): Promise<string> {
-  const relFileName = module.replace(".", "/") + ".adl";
+  const relFileName = module.replace(/\./g, "/") + ".adl";
   for(const basePath of searchPath) {
     const fileName = path.join(basePath, relFileName);
     if( await fs.exists(fileName)) {
