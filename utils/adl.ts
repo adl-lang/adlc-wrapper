@@ -403,7 +403,7 @@ export function hasAnnotation(
   annotations: adlast.Annotations,
   atype: adlast.ScopedName,
 ): boolean {
-  return getAnnotation(annotations, atype) != undefined;
+  return getAnnotation(annotations, atype) !== undefined;
 }
 
 export type DecodedTypeExpr =
