@@ -3,7 +3,7 @@ import { ADL as SYSDECLS, RESOLVER } from "../adl-gen/resolver.ts";
 import { createJsonBinding } from "../adl-gen/runtime/json.ts";
 import * as adl from "../adl-gen/runtime/adl.ts";
 import { typeExprToString } from "../adl-gen/runtime/utils.ts";
-import { getAdlModuleFile } from "./sources.ts";
+import { compilerSourceArgsFromParams, AdlSourceParams } from "./sources.ts";
 
 type AdlModuleMap = { [key: string]: adlast.Module };
 
@@ -13,7 +13,7 @@ export interface LoadedAdl {
   resolver: adl.DeclResolver;
 }
 
-export interface ParseAdlOptions {
+export interface ParseAdlParams extends AdlSourceParams {
   verbose?: boolean;
 }
 
@@ -24,47 +24,22 @@ export interface ParseAdlOptions {
  * Runs the adl compiler as a subprocess, using the environment variable ADLC to
  * specify the path.
  */
-export async function parseAdlModules(
-  adlModules: string[],
-  adlSearchPath: string[],
-  options?: ParseAdlOptions
-) {
-    // Map the adl modules to their underlying files
-    const adlFiles: string[] = [];
-    for(const m of adlModules) {
-      adlFiles.push(await getAdlModuleFile(adlSearchPath, m));
-    }
-    return parseAdlFiles(adlFiles, adlSearchPath, options);
-}
-
-/**
- * Load and parse the specified ADL files (and their dependencies) into
- * an adlast map.
- *
- * Runs the adl compiler as a subprocess, using the environment variable ADLC to
- * specify the path.
- */
-export async function parseAdlFiles(
-  adlFiles: string[],
-  adlSearchPath: string[],
-  options?: ParseAdlOptions,
-): Promise<LoadedAdl> {
+export async function parseAdlModules(params: ParseAdlParams): Promise<LoadedAdl> {
   const moduleMapJB = createJsonBinding(
     RESOLVER,
     adl.texprStringMap(adlast.texprModule()),
   );
-  const verbose = (options && options.verbose);
+  const verbose = !!params.verbose;
 
   // Work in a temporary directory
   const workdir = await Deno.makeTempDir();
 
   // run the ADL ast parser, outputing to a temporary file
   const outfile = workdir + "/output.json";
-  let cmd = ["adlc", "ast", `--combined-output=${outfile}`];
-  for (const dir of adlSearchPath) {
-    cmd = cmd.concat(["--searchdir", dir]);
-  }
-  cmd = cmd.concat(adlFiles);
+  let cmd = [
+    "adlc", "ast", `--combined-output=${outfile}`,
+    ...await compilerSourceArgsFromParams(params),
+  ]
   if (verbose) {
     console.log("Executing", cmd);
   }
