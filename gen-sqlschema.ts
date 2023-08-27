@@ -1,9 +1,10 @@
-import { changeCase, mustache } from "https://deno.land/x/adllang_tsdeno@v0.3/deps.ts";
+import { changeCase, mustache } from "./deps.ts";
 
-import * as adlast from "https://deno.land/x/adllang_tsdeno@v0.3/adl-gen/sys/adlast.ts";
-import * as adl from "https://deno.land/x/adllang_tsdeno@v0.3/adl-gen/runtime/adl.ts";
-import { JsonObject, JsonValue, createJsonBinding } from "https://deno.land/x/adllang_tsdeno@v0.3/adl-gen/runtime/json.ts";
-import { isEnum, typeExprToStringUnscoped } from "https://deno.land/x/adllang_tsdeno@v0.3/adl-gen/runtime/utils.ts";
+import * as adlast from "./adl-gen/sys/adlast.ts";
+import * as adl from "./adl-gen/runtime/adl.ts";
+import { JsonObject, JsonValue, createJsonBinding } from "./adl-gen/runtime/json.ts";
+import { isEnum, typeExprToStringUnscoped } from "./adl-gen/runtime/utils.ts";
+import { AdlSourceParams } from "./utils/sources.ts";
 import {
   decodeTypeExpr,
   expandNewType,
@@ -15,13 +16,11 @@ import {
   parseAdlModules,
   scopedName,
   scopedNamesEqual,
-} from "https://deno.land/x/adllang_tsdeno@v0.3/utils/adl.ts";
+} from "./utils/adl.ts";
 
 const snakeCase = changeCase.snakeCase;
 
-export interface GenSqlParams {
-  adlModules: string[];
-  searchPath: string[];
+export interface GenSqlParams  extends AdlSourceParams {
   extensions?: string[];
   templates?: Template[];
   viewsFile: string;
@@ -64,7 +63,10 @@ export interface DbView {
 export async function genCreateSqlSchema(
   params: GenCreateSqlParams,
 ): Promise<void> {
-  const { loadedAdl, dbResources } = await loadDbResources(params);
+  const { loadedAdl, dbResources } = await loadDbResources({
+    ...params,
+  });
+
   await generateCreateSqlSchema(params, loadedAdl, dbResources);
   await writeOtherFiles(params, loadedAdl, dbResources);
 }
@@ -72,9 +74,7 @@ export async function genCreateSqlSchema(
 async function loadDbResources(
   params: GenSqlParams,
 ): Promise<{ loadedAdl: LoadedAdl; dbResources: DbResources }> {
-  const loadedAdl = await parseAdlModules(params.adlModules, params.searchPath, {
-    verbose: params.verbose,
-  });
+  const loadedAdl = await parseAdlModules(params);
 
   const dbResources: DbResources = {tables:[], views:[]}
 
@@ -340,14 +340,6 @@ function getDbFields(loadedAdl: LoadedAdl, scopedDecl: adlast.ScopedDecl): DbFie
 
   function _fromField(field: adlast.Field, typeBindings: TypeBinding[]): DbField[] {
     const typeExpr = substituteTypeBindings(field.typeExpr, typeBindings);
-
-    // let isSpread = false;
-    // for (const ann of field.annotations) {
-    //   if (scopedNamesEqual(ann.key, DB_SPREAD)) {
-    //     isSpread = true;
-    //   }
-    // }
-
     const isSpread = getAnnotation(field.annotations, DB_SPREAD) !== undefined;
 
     if (isSpread) {
@@ -478,15 +470,7 @@ function getColumnType1(
         return ann;
       }
 
-      if (scopedNamesEqual(dtype.refScopedName, INSTANT)) {
-        return "timestamp with time zone";
-      } else if (scopedNamesEqual(dtype.refScopedName, LOCAL_DATE)) {
-        return "date";
-      } else if (scopedNamesEqual(dtype.refScopedName, LOCAL_TIME)) {
-        return "time";
-      } else if (scopedNamesEqual(dtype.refScopedName, LOCAL_DATETIME)) {
-        return "timestamp";
-      } else if (
+      if (
         sdecl.decl.type_.kind == "union_" && isEnum(sdecl.decl.type_.value)
       ) {
         return dbProfile.enumColumnType;
@@ -853,11 +837,6 @@ function substituteTypeBindings(texpr: adlast.TypeExpr, bindings: TypeBinding[])
 
 const DOC = scopedName("sys.annotations", "Doc");
 const MAYBE = scopedName("sys.types", "Maybe");
-
-const INSTANT = scopedName("common.types", "Instant");
-const LOCAL_DATE = scopedName("common.types", "LocalDate");
-const LOCAL_TIME = scopedName("common.types", "LocalTime");
-const LOCAL_DATETIME = scopedName("common.types", "LocalDateTime");
 
 const DB_TABLE = scopedName("common.db", "DbTable");
 const DB_SPREAD = scopedName("common.db", "DbSpread");
