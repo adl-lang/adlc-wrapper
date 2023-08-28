@@ -5,14 +5,11 @@ import { _AST_MAP as sys_annotations } from "./sys/annotations.ts";
 import { _AST_MAP as sys_dynamic } from "./sys/dynamic.ts";
 import { _AST_MAP as sys_types } from "./sys/types.ts";
 
-import { _AST_MAP as common_prisma } from "./common/prisma.ts";
-
 export const ADL: { [key: string]: ScopedDecl } = {
   ...sys_adlast,
   ...sys_annotations,
   ...sys_dynamic,
   ...sys_types,
-  ...common_prisma,
 };
 
 export const RESOLVER = declResolver(ADL);

@@ -1,7 +1,5 @@
-import * as P from "./adl-gen/common/prisma.ts";
-import { JsonObject, createJsonBinding } from "./adl-gen/runtime/json.ts";
-import { typeExprToStringUnscoped } from "./adl-gen/runtime/utils.ts";
-import { DbProfile, DbResources, FileWriter, GenCreateSqlParams, getColumnName, getColumnType, getDbProfile, loadDbResources, quoteReservedName } from "./gen-sqlschema.ts";
+import { JsonObject } from "./adl-gen/runtime/json.ts";
+import { DbProfile, DbResources, FileWriter, GenCreateSqlParams, getColumnName, getColumnType, loadDbResources, quoteReservedName } from "./gen-sqlschema.ts";
 import { LoadedAdl, getAnnotation, scopedName } from "./utils/adl.ts";
 
 export async function genCreatePrismaSchema(
@@ -11,31 +9,16 @@ export async function genCreatePrismaSchema(
     ...params,
   });
   await generateCreatePrismaSchema(params, loadedAdl, dbResources);
-  // await writeOtherFiles(params, loadedAdl, dbResources);
 }
 
-function pb_url(url: P.Url) {
-  switch (url.kind) {
+function pb_url(url: any) {
+  switch (Object.keys(url)[0]) {
     case "env":
-      return `env("${url.value}")`
+      return `env("${url["env"]}")`
     case "literal":
-      return `"${url.value}"`
+      return `"${url["literal"]}"`
     default:
-      assertNever(url)
-    
-  }
-}
-
-function if_not_null(writer: FileWriter, obj: any, key: string) {
-  if( !!obj[key] ) {
-    writer.write(`  ${key} = "${obj[key]}"\n`)
-  }
-}
-
-function if_not_empty(writer: FileWriter, obj: any, key: string) {
-  const elem: any[] = obj[key]
-  if( !!obj[key] && elem.length > 0 ) {
-    writer.write(`  ${key} = [${elem.map(e => `"${e}"`).join(", ")}]\n`)
+      throw new Error(`unknown prisma url key '${Object.keys(url)[0]}'`)
   }
 }
 
@@ -46,14 +29,24 @@ function conditional(writer: FileWriter, obj: any, key: string) {
         writer.write(`  ${key} = "${obj[key]}"\n`)
         break
       case "object": // array
-        const elem: any[] = obj[key]
-        if( elem.length === 0 ) {
-          return
+        if (obj[key] instanceof Array) {
+          const elem: any[] = obj[key]
+          if( elem.length === 0 ) {
+            return
+          }
+          writer.write(`  ${key} = [${elem.map(e => `"${e}"`).join(", ")}]\n`)  
+        } else {
+          const sm = obj[key]
+          const keys = Object.keys(sm)
+          const elems = keys.map(k => {
+            const params = Object.keys(sm[k]).map(k0 => `${k0}:"${sm[k][k0]}"`)
+            return params.length > 0 ? `${k}(${params.join(", ")})` : k
+          })
+          writer.write(`  ${key} = [${elems.join(", ")}]\n`)
         }
-        writer.write(`  ${key} = [${elem.map(e => `"${e}"`).join(", ")}]\n`)
         break
       default:
-        throw new Error(`??? ${typeof obj[key]}`)
+        throw new Error(`??? '${typeof obj[key]}' ${JSON.stringify(obj[key])}`)
     }
   }
 }
@@ -63,8 +56,6 @@ async function generateCreatePrismaSchema(
   loadedAdl: LoadedAdl,
   dbResources: DbResources,
 ): Promise<void> {
-  const pbJB = createJsonBinding(loadedAdl.resolver, P.texprPrismaBlocks());
-
   const dbTables = dbResources.tables;
   // Now generate the SQL file
   const writer = new FileWriter(params.createFile, !!params.verbose);
@@ -76,7 +67,6 @@ async function generateCreatePrismaSchema(
     }\n`,
   );
   writer.write(`//\n`);
-  writer.write(`// column comments show original ADL types\n`);
 
   const blocks0 = Object.keys(loadedAdl.modules).flatMap(mName => {
     const module = loadedAdl.modules[mName];
@@ -84,7 +74,7 @@ async function generateCreatePrismaSchema(
     if (ann === undefined) {
       return [];
     }
-    return [{ module: module, prismaBlock: pbJB.fromJson(ann) }];
+    return [{ module: module, prismaBlock: ann }];
   });
   if (blocks0.length === 0) {
     throw new Error("No module level PrismaBlock annotation found. One needed. This is generally included in the db.adl file");
@@ -93,18 +83,15 @@ async function generateCreatePrismaSchema(
     throw new Error(`More than one module level PrismaBlock annotation found ${blocks0.map(m => m.module.name).join(", ")}. There can be only one.`);
   }
   const blocks = blocks0[0];
-  const pb = blocks.prismaBlock;
+  const pb: any = blocks.prismaBlock;
   writer.write(`//\n`);
   writer.write(`// Blocks from ${blocks.module.name}\n`);
   writer.write(`\n`);
-  writer.write(`datasource ${pb.datasource_block_name ? pb.datasource_block_name : "db"} {\n`);
+  writer.write(`datasource ${pb["datasource_block_name"] ? pb["datasource_block_name"] : "db"} {\n`);
   const ds = pb.datasource;
   writer.write(`  provider = "${ds.provider}"\n`);
   writer.write(`  url = ${pb_url(ds.url)}\n`);
-  if_not_null(writer, ds, "shadowDatabaseUrl")
-  if_not_null(writer, ds, "directUrl")
-  if_not_null(writer, ds, "relationMode")
-  if_not_empty(writer, ds, "extensions")
+  ["shadowDatabaseUrl", "directUrl", "relationMode", "extensions"].forEach(k => conditional(writer, ds, k))
   writer.write(`}\n`);
   writer.write(`\n`);
 
@@ -124,7 +111,6 @@ async function generateCreatePrismaSchema(
     throw new Error("Extensions needed to be placed in the prisma datasource, instead of being passed as params.");
   }
 
-  // const constraints: string[] = [];
   let allExtraSql: string[] = [];
   const dbProfile = prisma2DbProfile;
 
@@ -274,14 +260,3 @@ const prisma2DbProfile: DbProfile = {
 // Json
 // Bytes
 // Unsupported
-
-/**
- * Typescript pattern to ensure exhaustive checks in switch/unions.
- *
- * See https://www.typescriptlang.org/docs/handbook/advanced-types.html
- */
-export function assertNever(x: never, msg?: string): never {
-  // tslint:disable-next-line:no-console
-  // console.log((msg || "unexpected object:"), x);
-  throw new Error(`${msg || "unexpected object:"} ${x}`);
-}
