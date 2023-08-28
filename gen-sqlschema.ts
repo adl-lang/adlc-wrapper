@@ -30,7 +30,7 @@ export interface GenSqlParams  extends AdlSourceParams {
   filter?: (scopedDecl: adlast.ScopedDecl)=>boolean
 }
 
-interface GenCreateSqlParams extends GenSqlParams {
+export interface GenCreateSqlParams extends GenSqlParams {
   createFile: string;
 }
 
@@ -71,7 +71,7 @@ export async function genCreateSqlSchema(
   await writeOtherFiles(params, loadedAdl, dbResources);
 }
 
-async function loadDbResources(
+export async function loadDbResources(
   params: GenSqlParams,
 ): Promise<{ loadedAdl: LoadedAdl; dbResources: DbResources }> {
   const loadedAdl = await parseAdlModules(params);
@@ -253,7 +253,7 @@ async function generateCreateSqlSchema(
   await writer.close();
 }
 
-class FileWriter {
+export class FileWriter {
   content: string[] = [];
 
   constructor(readonly path: string, readonly verbose: boolean) {
@@ -387,7 +387,7 @@ function assumeField<T>(
 /**
  * Returns the SQL name for a column corresponding to a field
  */
-function getColumnName(field: adlast.Field): string {
+export function getColumnName(field: adlast.Field): string {
   const ann = getAnnotation(field.annotations, DB_COLUMN_NAME);
   if (typeof ann === "string") {
     return ann;
@@ -403,7 +403,7 @@ const RESERVED_NAMES: { [name: string]: boolean } = {};
   RESERVED_NAMES[n] = true;
 });
 
-function quoteReservedName(s: string) {
+export function quoteReservedName(s: string) {
   if (RESERVED_NAMES[s]) {
     return `"${s}"`;
   } else {
@@ -420,7 +420,7 @@ interface ColumnType {
   notNullable: boolean;
 }
 
-function getColumnType(
+export function getColumnType(
   resolver: adl.DeclResolver,
   dbTables: DbTable[],
   field: adlast.Field,
@@ -519,7 +519,7 @@ function getForeignKeyRef(
 }
 
 // Contains customizations for the db mapping
-interface DbProfile {
+export interface DbProfile {
   idColumnType: string;
   enumColumnType: string;
   primColumnType(ptype: string): string;
@@ -631,7 +631,7 @@ const mssql2DbProfile: DbProfile = {
   },
 };
 
-function getDbProfile(
+export function getDbProfile(
   dbProfile?: "postgresql" | "postgresql2" | "mssql2",
 ): DbProfile {
   if (dbProfile == undefined) {
