@@ -22,9 +22,9 @@ export class FileWriter {
     }
   }
 
-  close(): Promise<void> {
+  close(): Promise<void|number> {
     if( this.path === "-" ) {
-      Deno.stdout.writeSync(new TextEncoder().encode(this.content.join("")))
+      return Deno.stdout.write(new TextEncoder().encode(this.content.join("")))
     }
     return Deno.writeTextFile(this.path, this.content.join(""));
   }

@@ -61,16 +61,17 @@ export async function genMermaidClassDiagram(
       if(typeRef.value === "Vector") {
         typeRef = f.typeExpr.parameters[0].typeRef;
         card = `"list"`;
-        fcard = "0..*️";
+        fcard = " 0..*️";
       }
       if(typeRef.value === "Nullable") {
         typeRef = f.typeExpr.parameters[0].typeRef;
         card = `"optional"`;
-        fcard = "?";
+        fcard = " ?";
       }
     }
     const hidden = getAnnotation(f.annotations, HIDDEN) !== undefined;
-    writer.cwrite(iif(sd) && !hidden, `        ${mndn2mcd(sd)} : ${f.name} ${fcard}\n`);
+    const embed = getAnnotation(f.annotations, EMBED) !== undefined;
+    writer.cwrite(iif(sd) && !hidden && !embed, `        ${mndn2mcd(sd)} : ${f.name}${fcard}\n`);
     return { typeRef, card };
   }
 
@@ -86,7 +87,8 @@ export async function genMermaidClassDiagram(
       if (typeRef.kind === "reference") {
         const to_ = typeRef.value;
         if (iim(to_.moduleName)) {
-          writer.cwrite(iif(sd) || iif(to_), `    ${mndn2mcd(sd)} ${card} --> ${sn2mcd(to_)}\n`);
+          const arrow = getAnnotation(f.annotations, EMBED) !== undefined ? "--|>" : "-->";
+          writer.cwrite(iif(sd) || iif(to_), `    ${mndn2mcd(sd)} ${card} ${arrow} ${sn2mcd(to_)}\n`);
           capture_deps(sd, to_);
         }
       }
@@ -139,10 +141,10 @@ export async function genMermaidClassDiagram(
 
   if (ifm()) {
     xfocus_in.sd.forEach(sd => {
-      writer.write(`    class ${mndn2mcd(sd)}["${sd.decl.name}"]\n`);
+      writer.write(`    class ${mndn2mcd(sd)}["${sd.moduleName.split(".").slice(-1)}.${sd.decl.name}"]\n`);
     });
     xfocus_out.sn.forEach(sn => {
-      writer.write(`    class ${sn2mcd(sn)}["${sn.name}"]\n`);
+      writer.write(`    class ${sn2mcd(sn)}["${sn.moduleName.split(".").slice(-1)}.${sn.name}"]\n`);
     });
   }
 
@@ -219,3 +221,4 @@ function forEachModuleDecl(
 const REPRESENTED_BY = scopedName("common.mspec", "RepresentedBy");
 const HIDDEN = scopedName("common.mspec", "Hidden");
 const EMBEDDED = scopedName("common.mspec", "Embedded");
+const EMBED = scopedName("common.mspec", "Embed");
