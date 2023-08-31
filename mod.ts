@@ -7,6 +7,8 @@ export {genCreateSqlSchema} from "./gen-sqlschema.ts";
 export {genCreatePrismaSchema} from "./gen-prismaschema.ts";
 export type {GenCreateSqlParams} from "./gen-sqlschema.ts";
 
+export {genMermaidClassDiagram} from "./docgen/classdiag.ts";
+
 export {genRust} from "./gen-rust.ts";
 export type {GenRustParams} from "./gen-rust.ts";
 
