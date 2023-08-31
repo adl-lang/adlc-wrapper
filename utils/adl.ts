@@ -5,7 +5,7 @@ import * as adl from "../adl-gen/runtime/adl.ts";
 import { typeExprToString } from "../adl-gen/runtime/utils.ts";
 import { compilerSourceArgsFromParams, AdlSourceParams } from "./sources.ts";
 
-type AdlModuleMap = { [key: string]: adlast.Module };
+export type AdlModuleMap = { [key: string]: adlast.Module };
 
 export interface LoadedAdl {
   allAdlDecls: { [key: string]: adlast.ScopedDecl };
