@@ -3,7 +3,8 @@ import {
   LoadedAdl,
   ParseAdlParams,
   forEachDecl,
-  parseAdlModules
+  parseAdlModules,
+  getAnnotation, scopedName
 } from "../utils/adl.ts";
 import {
   NameMungFn
@@ -28,12 +29,9 @@ export interface Decl<T, K extends keyof adlast.DeclTypeOpts> {
 }
 
 export interface Resources {
-  // scopedDecls: adlast.ScopedDecl[];
-  structs: ScopedDecl<adlast.Struct, "struct_">[];
-  unions: ScopedDecl<adlast.Union, "union_">[];
-  aliases: ScopedDecl<adlast.TypeDef, "type_">[];
-  newtypes: ScopedDecl<adlast.NewType, "newtype_">[];
+  scopedDecls: adlast.ScopedDecl[];
   moduleNames: string[];
+  declMap: Record<string, adlast.ScopedDecl>;
 }
 
 export async function loadResources(
@@ -42,12 +40,9 @@ export async function loadResources(
   const loadedAdl = await parseAdlModules(params);
   const moduleNames: Set<string> = new Set();
   const resources: Resources = {
-    // scopedDecls: [],
-    structs: [],
-    unions: [],
-    aliases: [],
-    newtypes: [],
+    scopedDecls: [],
     moduleNames: [],
+    declMap: {},
   };
 
   const acceptAll = (_scopedDecl: adlast.ScopedDecl) => true;
@@ -64,27 +59,30 @@ export async function loadResources(
     }
     moduleNames.add(scopedDecl.moduleName);
     const decl = scopedDecl.decl
-    switch (scopedDecl.decl.type_.kind) {
-      case "struct_":
-        resources.structs.push(scopedDecl as ScopedDecl<adlast.Struct, "struct_">);
-        // resources.structs.push({moduleName: scopedDecl.moduleName, decl: {...decl, type_: decl.type_.value}});
-        break;
-      case "union_":
-        resources.unions.push(scopedDecl as ScopedDecl<adlast.Union, "union_">);
-        // resources.unions.push({moduleName: scopedDecl.moduleName, decl: {...decl, type_: decl.type_.value}});
-        break;
-      case "type_":
-        resources.aliases.push(scopedDecl as ScopedDecl<adlast.TypeDef, "type_">);
-        // resources.aliases.push({moduleName: scopedDecl.moduleName, decl: {...decl, type_: decl.type_.value}});
-        break;
-      case "newtype_":
-        resources.newtypes.push(scopedDecl as ScopedDecl<adlast.NewType, "newtype_">);
-        // resources.newtypes.push({moduleName: scopedDecl.moduleName, decl: {...decl, type_: decl.type_.value}});
-        break;
+    resources.declMap[`${scopedDecl.moduleName}.${decl.name}`] = scopedDecl;
+    if( getAnnotation(scopedDecl.decl.annotations, HIDDEN) !== undefined ) {
+      return
     }
-    // resources.scopedDecls.push(scopedDecl);
+    // switch (scopedDecl.decl.type_.kind) {
+    //   case "struct_":
+    //     resources.structs.push(scopedDecl as ScopedDecl<adlast.Struct, "struct_">);
+    //     break;
+    //   case "union_":
+    //     resources.unions.push(scopedDecl as ScopedDecl<adlast.Union, "union_">);
+    //     break;
+    //   case "type_":
+    //     resources.aliases.push(scopedDecl as ScopedDecl<adlast.TypeDef, "type_">);
+    //     break;
+    //   case "newtype_":
+    //     resources.newtypes.push(scopedDecl as ScopedDecl<adlast.NewType, "newtype_">);
+    //     break;
+    // }
+    resources.scopedDecls.push(scopedDecl);
   });
+
   // dbResources.tables.sort((t1, t2) => t1.name < t2.name ? -1 : t1.name > t2.name ? 1 : 0);
   resources.moduleNames = Array.from(moduleNames.keys());
   return { loadedAdl, resources };
 }
+
+export const HIDDEN = scopedName("common.mspec", "Hidden");

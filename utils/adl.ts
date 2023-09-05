@@ -335,6 +335,23 @@ export function monomorphicName(
 }
 
 /**
+ * Return the json value for the given annotation type for all modules with this annotation (at module level).
+ * Returns an empty list if not modules contain the provided annotation.
+ */
+
+export function getModuleLevelAnnotation(modules: AdlModuleMap, annotationType: adlast.ScopedName) {
+  return Object.keys(modules).flatMap(mName => {
+    const module = modules[mName];
+    const ann = getAnnotation(module.annotations, annotationType);
+    if (ann === undefined) {
+      return [];
+    }
+    return [{ module, ann }];
+  });
+}
+
+
+/**
  * Return the json value for the given annotation type for the given decl. Return undefined if the
  * decl doesn't have that annotation
  */
