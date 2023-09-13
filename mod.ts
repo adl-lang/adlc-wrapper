@@ -9,6 +9,10 @@ export type {GenCreateSqlParams} from "./gen-sqlschema.ts";
 
 export {genMermaidClassDiagram} from "./docgen/classdiag.ts";
 
+export {genCreateGraphqlSchema} from "./gen-graphql-schema.ts";
+export type {GenGraphqlSchemaParams} from "./gen-graphql-schema.ts";
+
+
 export {genRust} from "./gen-rust.ts";
 export type {GenRustParams} from "./gen-rust.ts";
 

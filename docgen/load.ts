@@ -28,6 +28,11 @@ export interface Decl<T, K extends keyof adlast.DeclTypeOpts> {
   annotations: adlast.Annotations;
 }
 
+// export type ScopedType = ScopedDecl<adlast.Struct | adlast.Union, "struct_" | "union_">
+export type ScopedStruct = ScopedDecl<adlast.Struct , "struct_">;
+export type ScopedUnion = ScopedDecl<adlast.Union, "union_">;
+export type ScopedType = ScopedStruct | ScopedUnion;
+
 export interface Resources {
   scopedDecls: adlast.ScopedDecl[];
   moduleNames: string[];
@@ -50,6 +55,8 @@ export async function loadResources(
 
   // Find all of the struct declarations that have a DbTable annotation
   forEachDecl(loadedAdl.modules, (scopedDecl) => {
+    const decl = scopedDecl.decl
+    resources.declMap[`${scopedDecl.moduleName}.${decl.name}`] = scopedDecl;
     const accepted = filter(scopedDecl);
     if (!accepted) {
       return;
@@ -58,8 +65,6 @@ export async function loadResources(
       return;
     }
     moduleNames.add(scopedDecl.moduleName);
-    const decl = scopedDecl.decl
-    resources.declMap[`${scopedDecl.moduleName}.${decl.name}`] = scopedDecl;
     if( getAnnotation(scopedDecl.decl.annotations, HIDDEN) !== undefined ) {
       return
     }

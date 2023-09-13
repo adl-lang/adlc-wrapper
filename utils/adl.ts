@@ -41,7 +41,9 @@ export async function parseAdlModules(params: ParseAdlParams): Promise<LoadedAdl
     ...await compilerSourceArgsFromParams(params),
   ]
   if (verbose) {
-    console.log("Executing", cmd);
+    Deno.stderr.write(new TextEncoder().encode(
+      `Executing:\n${cmd.join(" \\\n    ")}\n`
+    ));
   }
   const proc = Deno.run({ cmd });
   const status = await proc.status();

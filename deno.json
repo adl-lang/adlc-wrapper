@@ -1,4 +1,8 @@
 {
+  "imports": {
+    "https://deno.land/x/adllang_localsetup@v0.8/": "/Users/garym/devel/projects/adl/local-setup/",
+    "https://deno.land/x/adl/stdlib": "../adl-tsdeno-stdlib"
+  },
   "tasks" : {
     "local-setup": "deno run --quiet --unstable --allow-all dev/local-setup.ts .local",
     "gen-adl" : "deno run --quiet --unstable --allow-all dev/gen-adl.ts"
