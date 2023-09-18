@@ -6,14 +6,13 @@ import {
   ParseAdlParams,
   forEachDecl,
   parseAdlModules,
-  getAnnotation, scopedName
+  scopedNamesEqual
 } from "../utils/adl.ts";
-import {
-  NameMungFn
-} from "./utils.ts";
 
 export interface LoadResourcesParams extends ParseAdlParams {
   filter?: (scopedDecl: adlast.ScopedDecl) => boolean;
+  filter_sn: (sn: adlast.ScopedName) => boolean;
+  typeExprToTypeName(te: adlast.TypeExpr): string
   // nameMung: NameMungFn;
 }
 
@@ -21,16 +20,9 @@ export interface DeclConcreteTypeOpts {
   struct_: adlast.Struct;
   union_: adlast.Union;
 }
-// export type ScopedConcreteType<T, K extends keyof DeclConcreteTypeOpts> = {
-//   moduleName: string;
-//   decl: Decl<T, K>;
-// };
-
 export interface DeclTypeOpts {
   struct_: adlast.Struct;
   union_: adlast.Union;
-  generic_struct_: adlast.Struct;
-  generic_union_: adlast.Union;
 }
 
 export type ScopedType<T, K extends keyof DeclTypeOpts> = {
@@ -47,160 +39,234 @@ export interface Decl<T, K extends keyof DeclTypeOpts> {
   annotations: adlast.Annotations;
 }
 
-// // export type ScopedType = ScopedDecl<adlast.Struct | adlast.Union, "struct_" | "union_">
 export type ScopedStruct = ScopedType<adlast.Struct, "struct_">;
 export type ScopedUnion = ScopedType<adlast.Union, "union_">;
-// export type ScopedGenericStruct = ScopedDecl<adlast.Struct, "generic_struct_">;
-// export type ScopedGenericUnion = ScopedDecl<adlast.Union, "generic_union_">;
 export type ScopedConcreteType = ScopedStruct | ScopedUnion;
 
+export interface SchemaType {
+  scopedDecl: ScopedConcreteType;
+  fields: SchemaField[];
+}
+
+type MonomophicType = {
+  name: string,
+  typeExpr: adlast.TypeExpr,
+  genericDecl: SchemaType,
+  referencesBy: string[];
+};
+
 export interface Resources {
-  concrete: ScopedConcreteType[];
-  generic: ScopedType<unknown, "generic_struct_" | "generic_union_">[];
-  // scopedDecls: adlast.ScopedDecl[];
-  moduleNames: string[];
-  declMap: Record<string, adlast.ScopedDecl>;
+  schemaTypes: SchemaType[];
+  schemaGenerics: SchemaType[];
+  monomorphicTypes: MonomophicType[];
+  declMap: Record<string, SchemaType>;
+  isRef: (sd: adlast.ScopedDecl) => boolean;
 }
 
 export async function loadResources(
   params: LoadResourcesParams,
 ): Promise<{ loadedAdl: LoadedAdl, resources: Resources; }> {
   const loadedAdl = await parseAdlModules(params);
-  const moduleNames: Set<string> = new Set();
+  const references: Set<string> = new Set();
   const resources: Resources = {
-    concrete: [],
-    generic: [],
-    // scopedDecls: [],
-    moduleNames: [],
+    schemaTypes: [],
+    schemaGenerics: [],
+    monomorphicTypes: [],
     declMap: {},
+    isRef: (sd: adlast.ScopedDecl) => references.has(`${sd.moduleName}.${sd.decl.name}`)
   };
 
   const acceptAll = (_scopedDecl: adlast.ScopedDecl) => true;
   const filter = params.filter ?? acceptAll;
 
+  let otherTypes: adlast.ScopedDecl[] = []
+
   forEachDecl(loadedAdl.modules, (scopedDecl) => {
     const decl = scopedDecl.decl;
-    resources.declMap[`${scopedDecl.moduleName}.${decl.name}`] = scopedDecl;
     const accepted = filter(scopedDecl);
     if (!accepted) {
       return;
     }
-    if (!params.adlModules.includes(scopedDecl.moduleName)) {
-      return;
+    const { st, unfocusedRef } = getSchemaFields(scopedDecl);
+    if( undefined === st.fields.find(f => !f.concrete) ) {
+      resources.schemaTypes.push(st)
+    } else {
+      resources.schemaGenerics.push(st)
     }
-    moduleNames.add(scopedDecl.moduleName);
-    const st = getScopedTypes(loadedAdl, scopedDecl)
-    // resources.scopedDecls.push(st);
-    resources.concrete.push(...st.concrete)
-    resources.generic.push(...st.generic)
+    resources.declMap[`${scopedDecl.moduleName}.${decl.name}`] = st;
+    otherTypes.push(...unfocusedRef)
   });
 
-  // dbResources.tables.sort((t1, t2) => t1.name < t2.name ? -1 : t1.name > t2.name ? 1 : 0);
-  resources.moduleNames = Array.from(moduleNames.keys());
-  return { loadedAdl, resources };
-}
-
-export type ConcreteField = adlast.Field;
-// export interface ConcreteField {
-//   name: string;
-//   serializedName: string;
-//   typeExpr: ConcreteTypeExpr;
-//   default: sys_types.Maybe<{}|null>;
-//   annotations: adlast.Annotations;
-// }
-// export interface ConcreteTypeExpr {
-//   typeRef: ConcreteTypeTypeRef;
-//   parameters: ConcreteTypeExpr[];
-// }
-// export type ConcreteTypeTypeRef = ConcreteTypeTypeRef_Primitive | ConcreteTypeTypeRef_TypeParam | ConcreteTypeTypeRef_Reference;
-
-export type ScopedTypes = {
-  concrete: ScopedConcreteType[];
-  generic: ScopedType<unknown, "generic_struct_" | "generic_union_">[];
-};
-
-/**
- * Returns a (one) concrete type for the provided scopedDecl (i.e. type and newtype are expanded) and
- * if any fields are generic returns synthetic
- */
-function getScopedTypes(loadedAdl: LoadedAdl, scopedDecl: adlast.ScopedDecl): ScopedTypes {
-
-  function _fromDecl(path: string[], scopedDecl: adlast.ScopedDecl, typeBindings: TypeBinding[]): ScopedTypes {
-    switch (scopedDecl.decl.type_.kind) {
-      case "type_":
-      case "newtype_": {
-        const typeExpr0 = scopedDecl.decl.type_.value.typeExpr;
-        const typeExpr = substituteTypeBindings(typeExpr0, typeBindings);
-        return _fromTypeExpr([...path, `${scopedDecl.decl.type_.kind}:${scopedDecl.decl.name}`], scopedDecl, typeExpr);
-      }
-      case "struct_":
-      case "union_": {
-        return {
-          generic: [],
-          concrete: [_makeScopedType(scopedDecl as ScopedConcreteType, scopedDecl.decl.type_.kind, typeBindings)]
-        };
-      }
+  while( true ) {
+    if( otherTypes.length == 0 ) {
+      break
     }
+    const otherTypes2: adlast.ScopedDecl[] = []
+    otherTypes = otherTypes.filter(scopedDecl => resources.declMap[`${scopedDecl.moduleName}.${scopedDecl.decl.name}`] === undefined)
+    otherTypes.forEach(scopedDecl => {
+      const { st, unfocusedRef } = getSchemaFields(scopedDecl);
+      if( undefined === st.fields.find(f => !f.concrete) ) {
+        resources.schemaTypes.push(st)
+      } else {
+        resources.schemaGenerics.push(st)
+      }
+      resources.declMap[`${scopedDecl.moduleName}.${scopedDecl.decl.name}`] = st;
+      otherTypes2.push(...unfocusedRef)
+    })
+    otherTypes = otherTypes2
   }
 
-  // ScopedConcreteType<T, K extends keyof DeclConcreteTypeOpts>
-
-  function _makeScopedType<K extends keyof DeclConcreteTypeOpts>(
-    scopedDecl: ScopedConcreteType,
-    // scopedDecl: ScopedConcreteType<DeclConcreteTypeOpts[K],K>,
-    kind: K,
-    typeBindings: TypeBinding[]
-  ): ScopedConcreteType {
-    return {
-      moduleName: scopedDecl.moduleName,
-      decl: {
-        name: scopedDecl.decl.name,
-        annotations: scopedDecl.decl.annotations,
-        version: scopedDecl.decl.version,
-        type_: {
-          kind,
-          value: {
-            typeParams: scopedDecl.decl.type_.value.typeParams,
-            fields: scopedDecl.decl.type_.value.fields.flatMap(f => _fromField(f, typeBindings)),
+  const monos: Record<string, MonomophicType> = {};
+  resources.schemaTypes.forEach(st => {
+    st.fields.forEach(f => {
+      if (f.monomophofised) {
+        const name = params.typeExprToTypeName(f.typeExpr);
+        const mono = monos[name];
+        if (mono) {
+          mono.referencesBy.push(`${st.scopedDecl.decl.name}::${f.name}`);
+        } else {
+          const typeRef = f.typeExpr.typeRef
+          if(typeRef.kind !== "reference") {
+            throw new Error("can only be a refenece")
           }
+          monos[name] = {
+            name,
+            typeExpr: f.typeExpr,
+            genericDecl: resources.declMap[`${typeRef.value.moduleName}.${typeRef.value.name}`],
+            referencesBy: [`${st.scopedDecl.decl.name}::${f.name}`],
+          };
         }
       }
-    } as ScopedConcreteType;
-  }
+    });
+  });
+  Object.keys(monos).forEach(k => {
+    resources.monomorphicTypes.push(monos[k])
+  })
 
-  function _fromTypeExpr(path: string[], scopedDecl: adlast.ScopedDecl, typeExpr: adlast.TypeExpr): ScopedTypes {
-    switch(typeExpr.typeRef.kind) {
-      case "reference": {
-        const sd = loadedAdl.resolver(typeExpr.typeRef.value);
-        const typeParams = sd.decl.type_.value.typeParams;
-        const typeBindings = createTypeBindings(typeParams, typeExpr.parameters);
-        return _fromDecl(path, sd, typeBindings);    
+  // dbResources.tables.sort((t1, t2) => t1.name < t2.name ? -1 : t1.name > t2.name ? 1 : 0);
+  // resources.moduleNames = Array.from(moduleNames.keys());
+  return { loadedAdl, resources };
+
+  function getSchemaFields(scopedDecl: adlast.ScopedDecl): {st: SchemaType, unfocusedRef: adlast.ScopedDecl[]} {
+    const unfocusedRef: adlast.ScopedDecl[] = []
+
+    function _fromDecl(scopedDecl: adlast.ScopedDecl, typeBindings: TypeBinding[]): SchemaField[] {
+      switch (scopedDecl.decl.type_.kind) {
+        case "type_":
+        case "newtype_": {
+          const typeExpr0 = scopedDecl.decl.type_.value.typeExpr;
+          const typeExpr = substituteTypeBindings(typeExpr0, typeBindings);
+          return _fromTypeExpr(typeExpr);
+        }
+        case "struct_":
+        case "union_": {
+          return scopedDecl.decl.type_.value.fields.map(f => _fromField(f, typeBindings));
+        }
       }
-      case "primitive":
-        throw new Error(`type expressions can't be reference a primative (for now), please wrap it. ${path.join("->")} '${scopedDecl.moduleName}.${scopedDecl.decl.name}' ${typeExpr.typeRef.kind}`);
-      case "typeParam":
-        throw new Error(`type expressions can't be reference a typeParam. ${path.join("->")} '${scopedDecl.moduleName}.${scopedDecl.decl.name}' ${typeExpr.typeRef.kind}`);
+    }
+
+    function _fromTypeExpr(typeExpr: adlast.TypeExpr): SchemaField[] {
+      switch (typeExpr.typeRef.kind) {
+        case "reference": {
+          const sd = loadedAdl.resolver(typeExpr.typeRef.value);
+          const typeParams = sd.decl.type_.value.typeParams;
+          const typeBindings = createTypeBindings(typeParams, typeExpr.parameters);
+          return _fromDecl(sd, typeBindings);
+        }
+        case "primitive":
+          throw new Error(`type expressions can't be reference a primative (for now), please wrap it. ${typeExpr.typeRef.kind}`);
+        case "typeParam":
+          throw new Error(`type expressions can't be reference a typeParam. ${typeExpr.typeRef.kind}`);
       }
+    }
+
+    function _fromField(field: adlast.Field, typeBindings: TypeBinding[]): SchemaField {
+      let typeExpr = substituteTypeBindings(field.typeExpr, typeBindings);
+      let card: Cardinality = "one";
+      let concrete = true;
+      switch (typeExpr.typeRef.kind) {
+        case "primitive":
+          switch (typeExpr.typeRef.value) {
+            case "Vector":
+              card = "many";
+              // should probably recurse
+              // currently output [X] or [X]! should ouput [X!] or [X]!
+              typeExpr = typeExpr.parameters[0];
+              break;
+            case "Nullable":
+              card = "one";
+              typeExpr = typeExpr.parameters[0];
+              break;
+            case "StringMap":
+              card = "map";
+              typeExpr = typeExpr.parameters[0];
+              break;
+          }
+          break;
+        case "typeParam":
+          concrete = false
+          break
+      }
+      let monomophofised = false
+      if (typeExpr.typeRef.kind === "reference") {
+        if (scopedNamesEqual(REF, typeExpr.typeRef.value)) {
+          typeExpr = typeExpr.parameters[0];
+          switch(typeExpr.typeRef.kind) {
+            case "typeParam":
+              concrete = false
+              break
+            case "reference":
+              if(scopedNamesEqual(REF, typeExpr.typeRef.value)) {
+                throw new Error(`In Ref<Ref<T>>, ref<ref<>>> is not supported. ${JSON.stringify(typeExpr.typeRef)}`);
+              }
+              const sn = typeExpr.typeRef.value
+              references.add(sn.moduleName + "." + sn.name);
+              if (!params.filter_sn(sn)) {
+                if( undefined === unfocusedRef.find(x => x.moduleName === sn.moduleName && x.decl.name === sn.name) ) {
+                  const exRef = loadedAdl.resolver(typeExpr.typeRef.value)
+                  unfocusedRef.push(exRef)
+                }
+              }
+              break
+            case "primitive":
+              throw new Error(`In Ref<T> T only references are supported.`);
+          }
+        }
+        // collect monophoric uses of generics (references only)
+        monomophofised = typeExpr.parameters.length > 0 && concrete
+      }
+      return {
+        name: field.name,
+        serializedName: field.serializedName,
+        typeExpr,
+        card,
+        concrete,
+        monomophofised,
+        default: field.default,
+        annotations: field.annotations
+      };
+    }
+
+    const st = {
+      scopedDecl: scopedDecl as ScopedConcreteType,
+      fields: _fromDecl(scopedDecl, []),
+    }
+    return {
+      st,
+      unfocusedRef,
+    };
   }
-
-  function _fromField(field: adlast.Field, typeBindings: TypeBinding[]): ConcreteField[] {
-    const typeExpr = substituteTypeBindings(field.typeExpr, typeBindings);
-    // const isSpread = getAnnotation(field.annotations, DB_SPREAD) !== undefined;
-    // if (isSpread) {
-    //   return _fromTypeExpr(typeExpr);
-    // }
-    return [{
-      name: field.name,
-      serializedName: field.serializedName,
-      typeExpr,
-      default: field.default,
-      annotations: field.annotations
-    }];
-  }
-
-  return _fromDecl([`${scopedDecl.decl.type_.kind}:${scopedDecl.decl.name}`], scopedDecl, []);
-
 }
+
+const REF = adlast.makeScopedName({ moduleName: "savanti.schema.v1.types", name: "Ref" });
+
+type Cardinality = "optional" | "one" | "many" | "map";
+
+export type SchemaField = adlast.Field & {
+  card: Cardinality;
+  concrete: boolean;
+  monomophofised: boolean;
+};
 
 export interface TypeBinding {
   name: string,
