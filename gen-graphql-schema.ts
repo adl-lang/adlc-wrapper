@@ -18,6 +18,7 @@ export interface GenGraphqlSchemaParams extends ParseAdlParams {
   verbose?: boolean;
   filter?: (scopedDecl: adlast.ScopedDecl) => boolean;
   output_file: string;
+  output_ast_file?: string;
   focus_modules?: string[];
 }
 
@@ -82,6 +83,9 @@ export async function genCreateGraphqlSchema(
     writer.write(`}\n`);
   })
 
+  if( params.output_ast_file ) {
+    Deno.writeTextFile(params.output_ast_file, JSON.stringify(resources.schemaTypes, null, 2));
+  }
   writer.close();
 
   function generateSchemaConcrete(st: SchemaType) {
@@ -94,12 +98,16 @@ export async function genCreateGraphqlSchema(
           writer.write(`"""\n`)
         }
         writer.write(`type ${st.scopedDecl.decl.name} {\n`);
-        if (resources.isRef(st.scopedDecl)) {
+        if (st.isReferenced) {
           writer.write(`    id: ID!\n`);
         } else if (st.fields.length == 0) {
           writer.write(`    _phantom: Boolean\n`);
         }
+        try {
         genStructFields(st.fields);
+        } catch ( e ) {
+          throw new Error(`${e} -- ${st.scopedDecl.moduleName}.${st.scopedDecl.decl.name}`)
+        }
         writer.write(`}\n`);
         writer.write(`\n`);
         break;
@@ -186,7 +194,7 @@ function fieldToGraphqlType(f: SchemaField): string {
       return typeExprToGraphqlType(f.typeExpr);
     case "many":
       return "[" + typeExprToGraphqlType(f.typeExpr) + "]!";
-    case "map":
+    case "stringmap":
       throw new Error("Map (StringMap) not implemented");
   }
 }
