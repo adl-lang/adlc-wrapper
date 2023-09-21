@@ -1,17 +1,28 @@
 import { typeExprToStringUnscoped } from "./adl-gen/runtime/utils.ts";
 import * as adlast from "./adl-gen/sys/adlast.ts";
 import {
-  SchemaField,
-  SchemaType,
-  loadResources
+  loadResources,
+  getAnnotation,
+  DGDECL,
+  DGFIELD,
+  GENINSTS,
+  REF,
+  DgraphDecl,
+  DgraphField,
+  TypeBinding,
+  createTypeBindings,
+  substituteTypeBindings,
+  GenericInstance,
 } from "./graphql/load.ts";
 import {
   FileWriter
 } from "./graphql/utils.ts";
 import {
   ParseAdlParams,
-  getAnnotation
+  forEachDecl,
+  scopedNamesEqual,
 } from "./utils/adl.ts";
+import * as sys_types from './adl-gen/sys/types.ts';
 
 export interface GenGraphqlSchemaParams extends ParseAdlParams {
   extensions?: string[];
@@ -46,7 +57,29 @@ export async function genCreateGraphqlSchema(
     },
     typeExprToTypeName: typeExprToGraphqlType,
   };
-  const { loadedAdl, resources } = await loadResources(params);
+  const { loadedAdl } = await loadResources(params);
+  const resources: Resources = {
+    schemaTypes: [],
+    schemaGenerics: [],
+    // monomorphicTypes: [],
+    // declMap: {},
+  };
+  forEachDecl(loadedAdl.modules, (scopedDecl) => {
+    const dgd = getAnnotation<DgraphDecl>(scopedDecl.decl.annotations, DGDECL);
+    if (dgd === undefined) {
+      return;
+    }
+    if (!dgd.concrete) {
+      const insts = getAnnotation<GenericInstance[]>(scopedDecl.decl.annotations, GENINSTS);
+      if (insts === undefined) {
+        throw new Error("GENINSTS annotation should exist on dg generics");
+      }
+      const st = getSchemaFields(scopedDecl, dgd);
+      resources.schemaGenerics.push({ ...st, insts });
+      return;
+    }
+    resources.schemaTypes.push(getSchemaFields(scopedDecl, dgd));
+  });
 
   const writer = new FileWriter(params.output_file, !!params.verbose);
   resources.schemaTypes.forEach(st => generateSchemaConcrete(st));
@@ -58,55 +91,136 @@ export async function genCreateGraphqlSchema(
         throw new Error("Generics not implemented for unions");
       case "struct_": {
         writer.write(`interface ${gt.scopedDecl.decl.name} {\n`);
-        const cfs = gt.fields.filter(f => f.concrete);
+        const cfs = gt.fields.filter(f => f.dgf.concrete);
         if (cfs.length === 0) {
           writer.write(`    _phantom: Boolean\n`);
         }
         genStructFields(cfs);
         writer.write(`}\n`);
+        writer.write(`\n`);
+        gt.insts.forEach(mono => {
+          writer.write(`# Used by ${mono.referencesBy.join(", ")}\n`);
+          writer.write(`type ${mono.name} implements ${gt.scopedDecl.decl.name} {\n`);
+          gt.fields.forEach(f => {
+            if (!f.dgf.concrete) {
+              if (f.field.typeExpr.typeRef.kind !== "typeParam") {
+                throw new Error(`typeParam expected`);
+              }
+              const idx = gt.scopedDecl.decl.type_.value.typeParams.indexOf(f.field.typeExpr.typeRef.value);
+              writer.write(`    ${f.field.name}: ${typeExprToGraphqlType(mono.typeExpr.parameters[idx])}\n`);
+            }
+          });
+          writer.write(`}\n`);
+          writer.write(`\n`);
+        });
       }
     }
   });
 
-  resources.monomorphicTypes.forEach(mono => {
-    writer.write(`# Used by ${mono.referencesBy.join(", ")}\n`);
-    writer.write(`type ${mono.name} implements ${mono.genericDecl.scopedDecl.decl.name} {\n`);
-    mono.genericDecl.fields.forEach(f => {
-      if( !f.concrete ) {
-        if(f.typeExpr.typeRef.kind !== "typeParam") {
-          throw new Error(`typeParam expected`)
-        }
-        const idx = mono.genericDecl.scopedDecl.decl.type_.value.typeParams.indexOf(f.typeExpr.typeRef.value)
-        writer.write(`    ${f.name}: ${typeExprToGraphqlType(mono.typeExpr.parameters[idx])}\n`)
-      }
-    })
-    writer.write(`}\n`);
-  })
+  // resources.monomorphicTypes.forEach(mono => {
+  //   writer.write(`# Used by ${mono.referencesBy.join(", ")}\n`);
+  //   writer.write(`type ${mono.name} implements ${mono.genericDecl.scopedDecl.decl.name} {\n`);
+  //   mono.genericDecl.fields.forEach(f => {
+  //     if( !f.concrete ) {
+  //       if(f.typeExpr.typeRef.kind !== "typeParam") {
+  //         throw new Error(`typeParam expected`)
+  //       }
+  //       const idx = mono.genericDecl.scopedDecl.decl.type_.value.typeParams.indexOf(f.typeExpr.typeRef.value)
+  //       writer.write(`    ${f.name}: ${typeExprToGraphqlType(mono.typeExpr.parameters[idx])}\n`)
+  //     }
+  //   })
+  //   writer.write(`}\n`);
+  // })
 
-  if( params.output_ast_file ) {
-    Deno.writeTextFile(params.output_ast_file, JSON.stringify(resources.schemaTypes, null, 2));
-  }
   writer.close();
+
+  function getSchemaFields(scopedDecl: adlast.ScopedDecl, dgd: DgraphDecl): SchemaType {
+    _fromDecl(scopedDecl, []);
+    const st: SchemaType = {
+      scopedDecl: scopedDecl as ScopedConcreteType,
+      fields: _fromDecl(scopedDecl, []),
+      dgd,
+    };
+    return st;
+
+    function _fromDecl(scopedDecl: adlast.ScopedDecl, typeBindings: TypeBinding[]): SchemaField[] {
+      switch (scopedDecl.decl.type_.kind) {
+        case "type_":
+        case "newtype_": {
+          const typeExpr0 = scopedDecl.decl.type_.value.typeExpr;
+          const typeExpr = substituteTypeBindings(typeExpr0, typeBindings);
+          return _fromTypeExpr(typeExpr);
+        }
+        case "struct_":
+        case "union_": {
+          const ff = (field: adlast.Field) => _fromField(field, typeBindings);
+          return scopedDecl.decl.type_.value.fields.map(ff);
+        }
+      }
+    }
+
+    function _fromTypeExpr(typeExpr: adlast.TypeExpr): SchemaField[] {
+      switch (typeExpr.typeRef.kind) {
+        case "reference": {
+          const sd = loadedAdl.resolver(typeExpr.typeRef.value);
+          const typeParams = sd.decl.type_.value.typeParams;
+          const typeBindings = createTypeBindings(typeParams, typeExpr.parameters);
+          return _fromDecl(sd, typeBindings);
+        }
+        case "primitive":
+          throw new Error(`type expressions can't be reference a primative (for now), please wrap it. ${typeExpr.typeRef.kind}`);
+        case "typeParam":
+          throw new Error(`type expressions can't be reference a typeParam. ${typeExpr.typeRef.kind}`);
+      }
+    }
+
+    function _fromField(field: adlast.Field, typeBindings: TypeBinding[]): SchemaField {
+      let dgf = getAnnotation<DgraphField>(field.annotations, DGFIELD);
+      let typeExpr = substituteTypeBindings(field.typeExpr, typeBindings);
+      switch (typeExpr.typeRef.kind) {
+        case "primitive":
+          if (typeExpr.parameters.length === 1) {
+            typeExpr = typeExpr.parameters[0];
+          }
+          break;
+      }
+      if (typeExpr.typeRef.kind === "reference") {
+        if (scopedNamesEqual(REF, typeExpr.typeRef.value)) {
+          typeExpr = typeExpr.parameters[0];
+        }
+      }
+      if (dgf === undefined) {
+        throw new Error("DGFIELD annotation needs to be defined for all fields");
+      }
+      return {
+        field: {
+          ...field,
+          typeExpr
+        },
+        dgf
+      };
+    }
+  }
 
   function generateSchemaConcrete(st: SchemaType) {
     switch (st.scopedDecl.decl.type_.kind) {
       case "struct_": {
         const doc = getAnnotation(st.scopedDecl.decl.annotations, DOC);
-        if( doc !== null && doc !== undefined ) {
-          writer.write(`"""\n`)
-          writer.write(`${(doc as string).replaceAll("\n", " ").trim()}\n`)
-          writer.write(`"""\n`)
+        if (doc !== null && doc !== undefined) {
+          writer.write(`"""\n`);
+          writer.write(`${(doc as string).replaceAll("\n", " ").trim()}\n`);
+          writer.write(`"""\n`);
         }
         writer.write(`type ${st.scopedDecl.decl.name} {\n`);
-        if (st.isReferenced) {
+        if (st.dgd.referenced) {
           writer.write(`    id: ID!\n`);
         } else if (st.fields.length == 0) {
           writer.write(`    _phantom: Boolean\n`);
         }
         try {
-        genStructFields(st.fields);
-        } catch ( e ) {
-          throw new Error(`${e} -- ${st.scopedDecl.moduleName}.${st.scopedDecl.decl.name}`)
+          genStructFields(st.fields);
+        } catch (e) {
+          throw new Error(`${e} -- ${st.scopedDecl.moduleName}.${st.scopedDecl.decl.name}`);
         }
         writer.write(`}\n`);
         writer.write(`\n`);
@@ -114,10 +228,10 @@ export async function genCreateGraphqlSchema(
       }
       case "union_": {
         const doc = getAnnotation(st.scopedDecl.decl.annotations, DOC);
-        if( doc !== null && doc !== undefined ) {
-          writer.write(`"""\n`)
-          writer.write(`${(doc as string).replaceAll("\n", " ").trim()}\n`)
-          writer.write(`"""\n`)
+        if (doc !== null && doc !== undefined) {
+          writer.write(`"""\n`);
+          writer.write(`${(doc as string).replaceAll("\n", " ").trim()}\n`);
+          writer.write(`"""\n`);
         }
         writer.write(`type ${st.scopedDecl.decl.name} {\n`);
         writer.write(`    kind: _${st.scopedDecl.decl.name}Branch!\n`);
@@ -128,11 +242,11 @@ export async function genCreateGraphqlSchema(
         // const uniqTypes = Array.from(uniqSet.keys())
 
         const names: [string, string, string, string | undefined][] = st.fields.map(f => {
-          const doc = getAnnotation(f.annotations, DOC);
+          const doc = getAnnotation(f.field.annotations, DOC);
           return [
-            f.name,
-            typeExprToGraphqlType(f.typeExpr),
-            typeExprToStringUnscoped(f.typeExpr),
+            f.field.name,
+            typeExprToGraphqlType(f.field.typeExpr),
+            typeExprToStringUnscoped(f.field.typeExpr),
             doc === null || doc === undefined ? undefined : (doc as string).replaceAll("\n", " ").trim()
           ];
         });
@@ -141,13 +255,13 @@ export async function genCreateGraphqlSchema(
 
         writer.write(`enum _${st.scopedDecl.decl.name}Branch {\n`);
         names.forEach(n => {
-          if(n[3]) {
-            writer.write(`    """\n`)
-            writer.write(`    ${n[3]}\n`)
-            writer.write(`    """\n`)
-          }    
+          if (n[3]) {
+            writer.write(`    """\n`);
+            writer.write(`    ${n[3]}\n`);
+            writer.write(`    """\n`);
+          }
           writer.write(`    ${n[0].padEnd(maxNameLen)} # ${n[2].padEnd(maxTypeLen)}`.trimEnd());
-          writer.write(`\n`)
+          writer.write(`\n`);
         });
         writer.write(`}\n`);
         const uniqTypes = names.map(n => n[1]).filter((v, i, a) => a.indexOf(v) === i);
@@ -163,11 +277,11 @@ export async function genCreateGraphqlSchema(
 
   function genStructFields(fields: SchemaField[]) {
     const names: [string, string, string, string | undefined][] = fields.map(f => {
-      const doc = getAnnotation(f.annotations, DOC);
+      const doc = getAnnotation(f.field.annotations, DOC);
       return [
-        f.name,
+        f.field.name,
         fieldToGraphqlType(f),
-        typeExprToStringUnscoped(f.typeExpr),
+        typeExprToStringUnscoped(f.field.typeExpr),
         doc === null || doc === undefined ? undefined : (doc as string).replaceAll("\n", " ").trim()
       ];
     });
@@ -175,25 +289,25 @@ export async function genCreateGraphqlSchema(
     const maxGqlTypeLen = Math.max.apply(null, names.map(n => n[1].length + 1));
     const maxTypeLen = Math.max.apply(null, names.map(n => n[2].length + 1));
     names.forEach(n => {
-      if(n[3]) {
-        writer.write(`    """\n`)
-        writer.write(`    ${n[3]}\n`)
-        writer.write(`    """\n`)
+      if (n[3]) {
+        writer.write(`    """\n`);
+        writer.write(`    ${n[3]}\n`);
+        writer.write(`    """\n`);
       }
       writer.write(`    ${(n[0] + ":").padEnd(maxNameLen)} ${n[1].padEnd(maxTypeLen)} # ${n[2].padEnd(maxGqlTypeLen)}`.trimEnd());
-      writer.write(`\n`)
+      writer.write(`\n`);
     });
   }
 }
 
 function fieldToGraphqlType(f: SchemaField): string {
-  switch (f.card) {
+  switch (f.dgf.card) {
     case "one":
-      return typeExprToGraphqlType(f.typeExpr) + "!";
+      return typeExprToGraphqlType(f.field.typeExpr) + "!";
     case "optional":
-      return typeExprToGraphqlType(f.typeExpr);
+      return typeExprToGraphqlType(f.field.typeExpr);
     case "many":
-      return "[" + typeExprToGraphqlType(f.typeExpr) + "]!";
+      return "[" + typeExprToGraphqlType(f.field.typeExpr) + "]!";
     case "stringmap":
       throw new Error("Map (StringMap) not implemented");
   }
@@ -246,4 +360,60 @@ function adl2graphqlType(ptype: string) {
       return "Float";
   }
   return "String";
+}
+
+// export interface DeclConcreteTypeOpts {
+//   struct_: adlast.Struct;
+//   union_: adlast.Union;
+// }
+export interface DeclTypeOpts {
+  struct_: adlast.Struct;
+  union_: adlast.Union;
+}
+
+export type ScopedType<T, K extends keyof DeclTypeOpts> = {
+  moduleName: string;
+  decl: Decl<T, K>;
+};
+export interface Decl<T, K extends keyof DeclTypeOpts> {
+  name: string;
+  version: sys_types.Maybe<number>;
+  type_: {
+    kind: K;
+    value: T;
+  };
+  annotations: adlast.Annotations;
+}
+
+export type ScopedStruct = ScopedType<adlast.Struct, "struct_">;
+export type ScopedUnion = ScopedType<adlast.Union, "union_">;
+export type ScopedConcreteType = ScopedStruct | ScopedUnion;
+
+export interface SchemaType {
+  scopedDecl: ScopedConcreteType;
+  dgd: DgraphDecl;
+  fields: SchemaField[];
+}
+
+export type GenericSchemaType = SchemaType & {
+  insts: GenericInstance[];
+};
+
+export type SchemaField = {
+  field: adlast.Field,
+  dgf: DgraphField,
+};
+
+type MonomophicType = {
+  name: string,
+  typeExpr: adlast.TypeExpr,
+  genericDecl: SchemaType,
+  referencesBy: string[];
+};
+
+export interface Resources {
+  schemaTypes: SchemaType[];
+  schemaGenerics: GenericSchemaType[];
+  // monomorphicTypes: MonomophicType[];
+  // declMap: Record<string, SchemaType>;
 }

@@ -49,8 +49,6 @@ export interface LoadResourcesParams extends ParseAdlParams {
 //   isReferenced: boolean;
 // }
 
-// type Cardinality = "optional" | "one" | "many" | "stringmap";
-
 // export type SchemaField = adlast.Field & {
 //   card: Cardinality;
 //   // concrete: boolean;
@@ -306,25 +304,25 @@ export async function loadResources(
   }
 }
 
-const REF = adlast.makeScopedName({ moduleName: "savanti.schema.v1.types", name: "Ref" });
-const GENINSTS = adlast.makeScopedName({ moduleName: "dgraph.annotations", name: "GenericInstances" });
-const DGFIELD = adlast.makeScopedName({ moduleName: "dgraph.annotations", name: "DgraphField" });
-const DGDECL = adlast.makeScopedName({ moduleName: "dgraph.annotations", name: "DgraphDecl" });
+export const REF = adlast.makeScopedName({ moduleName: "savanti.schema.v1.types", name: "Ref" });
+export const GENINSTS = adlast.makeScopedName({ moduleName: "dgraph.annotations", name: "GenericInstances" });
+export const DGFIELD = adlast.makeScopedName({ moduleName: "dgraph.annotations", name: "DgraphField" });
+export const DGDECL = adlast.makeScopedName({ moduleName: "dgraph.annotations", name: "DgraphDecl" });
 
-type DgraphDecl = {
+export type DgraphDecl = {
   referenced: boolean,
   concrete: boolean
   // bindings: TypeBinding[]
 }
 
-type DgraphField = {
+export type DgraphField = {
   card: Cardinality
   monomophofised: boolean
   concrete: boolean
   // bindings: TypeBinding[]
 }
 
-type GenericInstance = {
+export type GenericInstance = {
   name: string,
   typeExpr: adlast.TypeExpr,
   referencesBy: string[],
@@ -372,7 +370,7 @@ export function substituteTypeBindings(texpr: adlast.TypeExpr, bindings: TypeBin
   };
 }
 
-function getAnnotation<T>(
+export function getAnnotation<T>(
   annotations: adlast.Annotations,
   annotationType: adlast.ScopedName,
 ): T | undefined {
