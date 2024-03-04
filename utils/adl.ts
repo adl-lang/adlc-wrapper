@@ -5,7 +5,7 @@ import * as adl from "../adl-gen/runtime/adl.ts";
 import { typeExprToString } from "../adl-gen/runtime/utils.ts";
 import { compilerSourceArgsFromParams, AdlSourceParams } from "./sources.ts";
 
-type AdlModuleMap = { [key: string]: adlast.Module };
+export type AdlModuleMap = { [key: string]: adlast.Module };
 
 export interface LoadedAdl {
   allAdlDecls: { [key: string]: adlast.ScopedDecl };
@@ -333,6 +333,23 @@ export function monomorphicName(
     typeExprToString(te)
   ).join(",") + ">";
 }
+
+/**
+ * Return the json value for the given annotation type for all modules with this annotation (at module level).
+ * Returns an empty list if not modules contain the provided annotation.
+ */
+
+export function getModuleLevelAnnotation(modules: AdlModuleMap, annotationType: adlast.ScopedName) {
+  return Object.keys(modules).flatMap(mName => {
+    const module = modules[mName];
+    const ann = getAnnotation(module.annotations, annotationType);
+    if (ann === undefined) {
+      return [];
+    }
+    return [{ module, ann }];
+  });
+}
+
 
 /**
  * Return the json value for the given annotation type for the given decl. Return undefined if the
