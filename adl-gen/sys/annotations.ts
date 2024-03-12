@@ -5,7 +5,7 @@ import * as ADL from './../runtime/adl.ts';
 export type Doc = string;
 
 const Doc_AST : ADL.ScopedDecl =
-  {"moduleName":"sys.annotations","decl":{"annotations":[],"type_":{"kind":"type_","value":{"typeParams":[],"typeExpr":{"typeRef":{"kind":"primitive","value":"String"},"parameters":[]}}},"name":"Doc","version":{"kind":"nothing"}}};
+  {"decl":{"annotations":[],"name":"Doc","type_":{"kind":"type_","value":{"typeExpr":{"parameters":[],"typeRef":{"kind":"primitive","value":"String"}},"typeParams":[]}},"version":{"kind":"nothing"}},"moduleName":"sys.annotations"};
 
 export const snDoc: ADL.ScopedName = {moduleName:"sys.annotations", name:"Doc"};
 
@@ -16,7 +16,7 @@ export function texprDoc(): ADL.ATypeExpr<Doc> {
 export type SerializedName = string;
 
 const SerializedName_AST : ADL.ScopedDecl =
-  {"moduleName":"sys.annotations","decl":{"annotations":[],"type_":{"kind":"type_","value":{"typeParams":[],"typeExpr":{"typeRef":{"kind":"primitive","value":"String"},"parameters":[]}}},"name":"SerializedName","version":{"kind":"nothing"}}};
+  {"decl":{"annotations":[],"name":"SerializedName","type_":{"kind":"type_","value":{"typeExpr":{"parameters":[],"typeRef":{"kind":"primitive","value":"String"}},"typeParams":[]}},"version":{"kind":"nothing"}},"moduleName":"sys.annotations"};
 
 export const snSerializedName: ADL.ScopedName = {moduleName:"sys.annotations", name:"SerializedName"};
 
@@ -39,7 +39,7 @@ export function makeSerializedWithInternalTag(
 }
 
 const SerializedWithInternalTag_AST : ADL.ScopedDecl =
-  {"moduleName":"sys.annotations","decl":{"annotations":[],"type_":{"kind":"struct_","value":{"typeParams":[],"fields":[{"annotations":[],"serializedName":"tag","default":{"kind":"nothing"},"name":"tag","typeExpr":{"typeRef":{"kind":"primitive","value":"String"},"parameters":[]}}]}},"name":"SerializedWithInternalTag","version":{"kind":"nothing"}}};
+  {"decl":{"annotations":[],"name":"SerializedWithInternalTag","type_":{"kind":"struct_","value":{"fields":[{"annotations":[],"default":{"kind":"nothing"},"name":"tag","serializedName":"tag","typeExpr":{"parameters":[],"typeRef":{"kind":"primitive","value":"String"}}}],"typeParams":[]}},"version":{"kind":"nothing"}},"moduleName":"sys.annotations"};
 
 export const snSerializedWithInternalTag: ADL.ScopedName = {moduleName:"sys.annotations", name:"SerializedWithInternalTag"};
 
@@ -50,7 +50,7 @@ export function texprSerializedWithInternalTag(): ADL.ATypeExpr<SerializedWithIn
 export type CustomSerialization = boolean;
 
 const CustomSerialization_AST : ADL.ScopedDecl =
-  {"moduleName":"sys.annotations","decl":{"annotations":[],"type_":{"kind":"type_","value":{"typeParams":[],"typeExpr":{"typeRef":{"kind":"primitive","value":"Bool"},"parameters":[]}}},"name":"CustomSerialization","version":{"kind":"nothing"}}};
+  {"decl":{"annotations":[],"name":"CustomSerialization","type_":{"kind":"type_","value":{"typeExpr":{"parameters":[],"typeRef":{"kind":"primitive","value":"Bool"}},"typeParams":[]}},"version":{"kind":"nothing"}},"moduleName":"sys.annotations"};
 
 export const snCustomSerialization: ADL.ScopedName = {moduleName:"sys.annotations", name:"CustomSerialization"};
 
