@@ -2,8 +2,8 @@ import { AdlSourceParams, compilerSourceArgsFromParams } from "./utils/sources.t
 
 export interface GenTypescriptParams extends AdlSourceParams {
   outputDir: string;
-  runtimeDir: string;
 
+  runtimeDir?: string;
   verbose?: boolean;
   noOverwrite?: boolean;
   manifest?: string;
@@ -19,10 +19,10 @@ export async function genTypescript(params: GenTypescriptParams) {
   let cmd: string[] = ["adlc", "typescript"];
   
   cmd = cmd.concat(["--outputdir", params.outputDir]);
-  cmd = cmd.concat(["--runtime-dir", params.runtimeDir]);
 
-
-
+  if (params.runtimeDir) {
+    cmd = cmd.concat(["--runtime-dir", params.runtimeDir]);
+  }
   if (params.verbose) {
     cmd.push("--verbose");
   }
