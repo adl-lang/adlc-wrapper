@@ -1,5 +1,61 @@
 {
-  "version": "2",
+  "version": "4",
+  "specifiers": {
+    "jsr:@adllang/adl-runtime@^0.0.2": "0.0.2",
+    "jsr:@adllang/jsonbinding@~0.2.3": "0.2.3",
+    "jsr:@adllang/local-setup@*": "0.16.0",
+    "jsr:@std/bytes@^1.0.2": "1.0.4",
+    "jsr:@std/encoding@^1.0.5": "1.0.5",
+    "jsr:@std/fs@^1.0.5": "1.0.5",
+    "jsr:@std/io@0.225": "0.225.0",
+    "jsr:@std/path@^1.0.7": "1.0.8",
+    "jsr:@std/path@^1.0.8": "1.0.8",
+    "jsr:@std/yaml@^1.0.5": "1.0.5"
+  },
+  "jsr": {
+    "@adllang/adl-runtime@0.0.2": {
+      "integrity": "3c542479ed5ccaba4ac364e215c46457eae3b6db1c6bfae0a52e2bb70f7df17f",
+      "dependencies": [
+        "jsr:@adllang/jsonbinding",
+        "jsr:@std/encoding"
+      ]
+    },
+    "@adllang/jsonbinding@0.2.3": {
+      "integrity": "7206e24c31290b3572c00f2e9039dbce29b3a36ca616256337eafbcdf364d7fa"
+    },
+    "@adllang/local-setup@0.16.0": {
+      "integrity": "6b9d4f12a3b3077fcf2b9b98cd7c031fe2f275d017a12222b2005cd4a11a761b",
+      "dependencies": [
+        "jsr:@std/fs",
+        "jsr:@std/io",
+        "jsr:@std/path@^1.0.8"
+      ]
+    },
+    "@std/bytes@1.0.4": {
+      "integrity": "11a0debe522707c95c7b7ef89b478c13fb1583a7cfb9a85674cd2cc2e3a28abc"
+    },
+    "@std/encoding@1.0.5": {
+      "integrity": "ecf363d4fc25bd85bd915ff6733a7e79b67e0e7806334af15f4645c569fefc04"
+    },
+    "@std/fs@1.0.5": {
+      "integrity": "41806ad6823d0b5f275f9849a2640d87e4ef67c51ee1b8fb02426f55e02fd44e",
+      "dependencies": [
+        "jsr:@std/path@^1.0.7"
+      ]
+    },
+    "@std/io@0.225.0": {
+      "integrity": "c1db7c5e5a231629b32d64b9a53139445b2ca640d828c26bf23e1c55f8c079b3",
+      "dependencies": [
+        "jsr:@std/bytes"
+      ]
+    },
+    "@std/path@1.0.8": {
+      "integrity": "548fa456bb6a04d3c1a1e7477986b6cffbce95102d0bb447c67c4ee70e0364be"
+    },
+    "@std/yaml@1.0.5": {
+      "integrity": "71ba3d334305ee2149391931508b2c293a8490f94a337eef3a09cade1a2a2742"
+    }
+  },
   "remote": {
     "https://deno.land/std@0.105.0/_util/assert.ts": "2f868145a042a11d5ad0a3c748dcf580add8a0dbc0e876eaa0026303a5488f58",
     "https://deno.land/std@0.105.0/_util/os.ts": "dfb186cc4e968c770ab6cc3288bd65f4871be03b93beecae57d657232ecffcac",
@@ -104,5 +160,13 @@
     "https://deno.land/x/case@v2.1.0/vendor/camelCaseUpperRegexp.ts": "292de54a698370f90adcdf95727993d09888b7f33d17f72f8e54ba75f7791787",
     "https://deno.land/x/case@v2.1.0/vendor/nonWordRegexp.ts": "c1a052629a694144b48c66b0175a22a83f4d61cb40f4e45293fc5d6b123f927e",
     "https://deno.land/x/mustache_ts@v0.4.1.1/mustache.ts": "228a1138f55735e399b2232c87bcbb415ee462a067a10c71c14ae207c0b36a78"
+  },
+  "workspace": {
+    "dependencies": [
+      "jsr:@adllang/adl-runtime@^0.0.2",
+      "jsr:@std/fs@^1.0.5",
+      "jsr:@std/path@^1.0.8",
+      "jsr:@std/yaml@^1.0.5"
+    ]
   }
 }

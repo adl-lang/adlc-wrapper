@@ -1,4 +1,5 @@
-import { AdlSourceParams, compilerSourceArgsFromParams } from "./utils/sources.ts";
+import { execAdlc } from "./utils/exec.ts";
+import { type AdlSourceParams, compilerSourceArgsFromParams } from "./utils/sources.ts";
 
 export interface GenJavaParams extends AdlSourceParams {
   package: string;
@@ -14,48 +15,44 @@ export interface GenJavaParams extends AdlSourceParams {
   suppressWarningsAnnotation?: string;
 }
 
-export async function genJava(params: GenJavaParams) {
-  let cmd: string[] = ["adlc", "java"];
-  cmd = cmd.concat(["--package", params.package]);
-  cmd = cmd.concat(["--outputdir", params.outputDir]);
+export async function genJava(params: GenJavaParams): Promise<void> {
+  let args: string[] = ["java"];
+  args = args.concat(["--package", params.package]);
+  args = args.concat(["--outputdir", params.outputDir]);
 
   if (params.verbose) {
-    cmd.push("--verbose");
+    args.push("--verbose");
   }
   if (params.noOverwrite) {
-    cmd.push("--no-overwrite");
+    args.push("--no-overwrite");
   }
   if (params.manifest) {
-    cmd = cmd.concat(["--manifest", params.manifest]);
+    args = args.concat(["--manifest", params.manifest]);
   }
   if (params.generateTransitive) {
-    cmd.push("--generate-transitive");
+    args.push("--generate-transitive");
   }
   if (params.includeRuntime) {
-    cmd.push("--include-rt");
+    args.push("--include-rt");
   }
   if (params.runtimePackage) {
-    cmd = cmd.concat(["--rtpackage", params.runtimePackage]);
+    args = args.concat(["--rtpackage", params.runtimePackage]);
   }
   if (params.headerComment) {
-    cmd = cmd.concat(["--header-comment", params.headerComment]);
+    args = args.concat(["--header-comment", params.headerComment]);
   }
   if (params.suppressWarningsAnnotation) {
-    cmd = cmd.concat([
+    args = args.concat([
       "--suppress-warnings-annotation",
       params.suppressWarningsAnnotation,
     ]);
   }
 
   const sourceArgs = await compilerSourceArgsFromParams(params);
-  cmd = cmd.concat(sourceArgs);
+  args = args.concat(sourceArgs);
   if (params.verbose) {
-    console.log("Executing", cmd);
+    console.log("Executing", args);
   }
 
-  const proc = Deno.run({ cmd });
-  const status = await proc.status();
-  if (!status.success) {
-    throw new Error("Failed to run adl java");
-  }
+  return execAdlc(args);
 }

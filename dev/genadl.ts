@@ -1,8 +1,6 @@
 import {
-  getAdlStdLibDir,
-  globFiles,
   genTypescript
-} from "../../adl-tsdeno/mod.ts";
+} from "../mod.ts";
 
 async function main() {
   const verbose = false;
@@ -18,8 +16,6 @@ async function main() {
     ],
     tsStyle: "deno",
     outputDir: tsadldir,
-    runtimeDir: "runtime",
-    includeRuntime: true,
     searchPath: [],
     includeResolver: true,
     manifest: tsadldir + "/.adl-manifest",

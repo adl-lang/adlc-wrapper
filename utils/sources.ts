@@ -1,5 +1,6 @@
 import { getAdlStdLibDir } from "./fs.ts";
-import { path, fs } from "../deps.ts";
+import * as fs from "@std/fs"
+import * as path from "@std/path"
 
 export interface AdlSourceParams {
   mergeAdlExts?: string[],

@@ -1,4 +1,5 @@
-import { AdlSourceParams, compilerSourceArgsFromParams } from "./utils/sources.ts";
+import { execAdlc } from "./utils/exec.ts";
+import { type AdlSourceParams, compilerSourceArgsFromParams } from "./utils/sources.ts";
 
 export interface GenRustParams extends AdlSourceParams{
   outputDir: string;
@@ -12,37 +13,33 @@ export interface GenRustParams extends AdlSourceParams{
   includeRuntime?: boolean;
 }
 
-export async function genRust(params: GenRustParams) {
-  let cmd: string[] = ["adlc", "rust"];
-  cmd = cmd.concat(["--outputdir", params.outputDir]);
-  cmd = cmd.concat(["--module", params.module]);
-  cmd = cmd.concat(["--runtime-module", params.runtimeModule]);
+export async function genRust(params: GenRustParams): Promise<void> {
+  let args: string[] = ["rust"];
+  args = args.concat(["--outputdir", params.outputDir]);
+  args = args.concat(["--module", params.module]);
+  args = args.concat(["--runtime-module", params.runtimeModule]);
 
   if (params.verbose) {
-    cmd.push("--verbose");
+    args.push("--verbose");
   }
   if (params.noOverwrite) {
-    cmd.push("--no-overwrite");
+    args.push("--no-overwrite");
   }
   if (params.manifest) {
-    cmd = cmd.concat(["--manifest", params.manifest]);
+    args = args.concat(["--manifest", params.manifest]);
   }
   if (params.generateTransitive) {
-    cmd.push("--generate-transitive");
+    args.push("--generate-transitive");
   }
   if (params.includeRuntime) {
-    cmd.push("--include-rt");
+    args.push("--include-rt");
   }
   const sourceArgs = await compilerSourceArgsFromParams(params);
-  cmd = cmd.concat(sourceArgs);
+  args = args.concat(sourceArgs);
 
   if (params.verbose) {
-    console.log("Executing", cmd);
+    console.log("Executing", args);
   }
 
-  const proc = Deno.run({ cmd });
-  const status = await proc.status();
-  if (!status.success) {
-    throw new Error("Failed to run adl rust");
-  }
+  return execAdlc(args);
 }

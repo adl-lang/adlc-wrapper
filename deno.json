@@ -1,6 +1,16 @@
 {
+  "name": "@adllang/adlc-wrapper",
+  "version": "0.1.0",
+  "license": "BSD",
+  "exports": "./mod.ts",
   "tasks" : {
     "local-setup": "deno run --quiet --allow-all dev/local-setup.ts .local",
-    "gen-adl" : "deno run --quiet --allow-all ./dev/gen-adl.ts"
+    "genadl" : "deno run --quiet --allow-all ./dev/genadl.ts"
+  },
+  "imports": {
+    "@adllang/adl-runtime": "jsr:@adllang/adl-runtime@^0.0.2",
+    "@std/fs": "jsr:@std/fs@^1.0.5",
+    "@std/path": "jsr:@std/path@^1.0.8",
+    "@std/yaml": "jsr:@std/yaml@^1.0.5"
   }
 }

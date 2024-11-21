@@ -1,4 +1,5 @@
-import { AdlSourceParams, compilerSourceArgsFromParams } from "./utils/sources.ts";
+import { execAdlc } from "./utils/exec.ts";
+import { type AdlSourceParams, compilerSourceArgsFromParams } from "./utils/sources.ts";
 
 export interface GenTypescriptParams extends AdlSourceParams {
   outputDir: string;
@@ -15,55 +16,51 @@ export interface GenTypescriptParams extends AdlSourceParams {
   excludeAstAnnotations?: [];
 }
 
-export async function genTypescript(params: GenTypescriptParams) {
-  let cmd: string[] = ["adlc", "typescript"];
+export async function genTypescript(params: GenTypescriptParams): Promise<void> {
+  let args: string[] = ["typescript"];
   
-  cmd = cmd.concat(["--outputdir", params.outputDir]);
+  args = args.concat(["--outputdir", params.outputDir]);
 
   if (params.runtimeDir) {
-    cmd = cmd.concat(["--runtime-dir", params.runtimeDir]);
+    args = args.concat(["--runtime-dir", params.runtimeDir]);
   }
   if (params.verbose) {
-    cmd.push("--verbose");
+    args.push("--verbose");
   }
   if (params.noOverwrite) {
-    cmd.push("--no-overwrite");
+    args.push("--no-overwrite");
   }
   if (params.manifest) {
-    cmd = cmd.concat(["--manifest", params.manifest]);
+    args = args.concat(["--manifest", params.manifest]);
   }
   if (params.generateTransitive) {
-    cmd.push("--generate-transitive");
+    args.push("--generate-transitive");
   }
   if (params.includeRuntime) {
-    cmd.push("--include-rt");
+    args.push("--include-rt");
   }
   if (params.tsStyle) {
-    cmd = cmd.concat(["--ts-style", params.tsStyle]);
+    args = args.concat(["--ts-style", params.tsStyle]);
   }
   if (params.includeResolver === undefined || params.includeResolver) {
-    cmd.push("--include-resolver");
+    args.push("--include-resolver");
   }
   if (params.excludeAst) {
-    cmd.push("--exclude-ast");
+    args.push("--exclude-ast");
   }
   if (params.excludeAstAnnotations != undefined) {
-    cmd = cmd.concat([
+    args = args.concat([
       "--excluded-ast-annotations",
       params.excludeAstAnnotations.join(","),
     ]);
   }
 
   const sourceArgs = await compilerSourceArgsFromParams(params);
-  cmd = cmd.concat(sourceArgs);
+  args = args.concat(sourceArgs);
 
   if (params.verbose) {
-    console.log("Executing", cmd);
+    console.log("Executing", args);
   }
 
-  const proc = Deno.run({ cmd });
-  const status = await proc.status();
-  if (!status.success) {
-    throw new Error("Failed to run adl typescript");
-  }
+  return execAdlc(args);
 }

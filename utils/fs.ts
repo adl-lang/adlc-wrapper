@@ -1,4 +1,5 @@
-import { fs, path } from "../deps.ts";
+import * as fs from "@std/fs"
+import * as path from "@std/path"
 
 export async function globFiles(
   root: string,
@@ -17,10 +18,9 @@ export function getHelixCore(): string {
 }
 
 export async function getAdlStdLibDir(): Promise<string> {
-  const proc = Deno.run({
-    cmd: ["adlc", "show", "--adlstdlib"],
-    stdout: "piped",
+  const proc = new Deno.Command("adlc", {
+    args: ["show", "--adlstdlib"],
   });
-  const output = await proc.output();
-  return new TextDecoder().decode(output).trim();
+  const {stdout} = await proc.output();
+  return new TextDecoder().decode(stdout).trim();
 }

@@ -3,19 +3,21 @@ import {
   forPlatform,
   getHostPlatform,
   installTo
-} from "https://deno.land/x/adllang_localsetup@v0.11/mod.ts";
+} from "jsr:@adllang/local-setup";
 
-const DENO = packages.deno("1.41.2");
 const ADL = packages.adl("1.2.1");
 
 export async function main() {
-  if (Deno.args.length != 1) {
-    console.error("Usage: local-setup LOCALDIR");
+  if (Deno.args.length != 2) {
+    console.error("Usage: local-setup DENOVERSION LOCALDIR");
     Deno.exit(1);
   }
-  const localdir = Deno.args[0];
+  const denoVersion = Deno.args[0];
+  const localdir = Deno.args[1];
 
   const platform = getHostPlatform();
+
+  const DENO = packages.deno(denoVersion);
 
   const installs = [
     forPlatform(DENO, platform),

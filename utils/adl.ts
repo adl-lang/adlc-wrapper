@@ -1,9 +1,10 @@
 import * as adlast from "../adl-gen/sys/adlast.ts";
 import { ADL as SYSDECLS, RESOLVER } from "../adl-gen/resolver.ts";
-import { createJsonBinding } from "../adl-gen/runtime/json.ts";
-import * as adl from "../adl-gen/runtime/adl.ts";
-import { typeExprToString } from "../adl-gen/runtime/utils.ts";
-import { compilerSourceArgsFromParams, AdlSourceParams } from "./sources.ts";
+import { createJsonBinding } from "@adllang/adl-runtime";
+import * as adl from "@adllang/adl-runtime";
+import { typeExprToString } from "@adllang/adl-runtime";
+import { compilerSourceArgsFromParams, type AdlSourceParams } from "./sources.ts";
+import { execAdlc } from "./exec.ts";
 
 export type AdlModuleMap = { [key: string]: adlast.Module };
 
@@ -36,18 +37,14 @@ export async function parseAdlModules(params: ParseAdlParams): Promise<LoadedAdl
 
   // run the ADL ast parser, outputing to a temporary file
   const outfile = workdir + "/output.json";
-  let cmd = [
-    "adlc", "ast", `--combined-output=${outfile}`,
+  const args = [
+    "ast", `--combined-output=${outfile}`,
     ...await compilerSourceArgsFromParams(params),
   ]
   if (verbose) {
-    console.log("Executing", cmd);
+    console.log("Executing", args);
   }
-  const proc = Deno.run({ cmd });
-  const status = await proc.status();
-  if (!status.success) {
-    throw new Error("Failed to run adl ast");
-  }
+  await execAdlc(args);
 
   // Parse the module map json
   const text = await Deno.readTextFile(outfile);
