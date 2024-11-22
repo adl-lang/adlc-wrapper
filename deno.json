@@ -1,8 +1,18 @@
 {
   "name": "@adllang/adlc-wrapper",
-  "version": "0.1.0",
+  "version": "0.1.4",
   "license": "BSD",
-  "exports": "./mod.ts",
+  "exports": {
+    "." : "./mod.ts",
+    "./adlgen/resolver" : "./adlgen/resolver.ts",
+    "./adlgen/sys/adlast" : "./adlgen/sys/adlast.ts",
+    "./adlgen/sys/annotations" : "./adlgen/sys/annotations.ts",
+    "./adlgen/sys/dynamic" : "./adlgen/sys/dynamic.ts",
+    "./adlgen/sys/types" : "./adlgen/sys/types.ts",
+    "./utils/adl" : "./utils/adl.ts",
+    "./utils/sources" : "./utils/sources.ts",
+    
+  },
   "tasks" : {
     "local-setup": "deno run --quiet --allow-all dev/local-setup.ts .local",
     "genadl" : "deno run --quiet --allow-all ./dev/genadl.ts"

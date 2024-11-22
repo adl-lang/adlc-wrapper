@@ -1,5 +1,5 @@
 /* @generated from adl */
-import { declResolver, ScopedDecl } from "@adllang/adl-runtime";
+import { type DeclResolver, type ScopedDecl, declResolver } from "@adllang/adl-runtime";
 import { _AST_MAP as sys_adlast } from "./sys/adlast.ts";
 import { _AST_MAP as sys_annotations } from "./sys/annotations.ts";
 import { _AST_MAP as sys_dynamic } from "./sys/dynamic.ts";
@@ -12,4 +12,4 @@ export const ADL: { [key: string]: ScopedDecl } = {
   ...sys_types,
 };
 
-export const RESOLVER = declResolver(ADL);
+export const RESOLVER: DeclResolver = declResolver(ADL);

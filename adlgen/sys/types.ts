@@ -44,7 +44,7 @@ export interface EitherOpts<T1, T2> {
   right: T2;
 }
 
-export function makeEither<T1, T2, K extends keyof EitherOpts<T1, T2>>(kind: K, value: EitherOpts<T1, T2>[K]) { return {kind, value}; }
+export function makeEither<T1, T2, K extends keyof EitherOpts<T1, T2>>(kind: K, value: EitherOpts<T1, T2>[K]): Either<T1,T2> { return {kind, value} as Either<T1,T2>; }
 
 const Either_AST : ADL.ScopedDecl =
   {"decl":{"annotations":[],"name":"Either","type_":{"kind":"union_","value":{"fields":[{"annotations":[],"default":{"kind":"nothing"},"name":"left","serializedName":"left","typeExpr":{"parameters":[],"typeRef":{"kind":"typeParam","value":"T1"}}},{"annotations":[],"default":{"kind":"nothing"},"name":"right","serializedName":"right","typeExpr":{"parameters":[],"typeRef":{"kind":"typeParam","value":"T2"}}}],"typeParams":["T1","T2"]}},"version":{"kind":"nothing"}},"moduleName":"sys.types"};
@@ -70,7 +70,7 @@ export interface MaybeOpts<T> {
   just: T;
 }
 
-export function makeMaybe<T, K extends keyof MaybeOpts<T>>(kind: K, value: MaybeOpts<T>[K]) { return {kind, value}; }
+export function makeMaybe<T, K extends keyof MaybeOpts<T>>(kind: K, value: MaybeOpts<T>[K]): Maybe<T> { return {kind, value} as Maybe<T>; }
 
 const Maybe_AST : ADL.ScopedDecl =
   {"decl":{"annotations":[],"name":"Maybe","type_":{"kind":"union_","value":{"fields":[{"annotations":[],"default":{"kind":"nothing"},"name":"nothing","serializedName":"nothing","typeExpr":{"parameters":[],"typeRef":{"kind":"primitive","value":"Void"}}},{"annotations":[],"default":{"kind":"nothing"},"name":"just","serializedName":"just","typeExpr":{"parameters":[],"typeRef":{"kind":"typeParam","value":"T"}}}],"typeParams":["T"]}},"version":{"kind":"nothing"}},"moduleName":"sys.types"};
@@ -97,7 +97,7 @@ export interface ResultOpts<T, E> {
   error: E;
 }
 
-export function makeResult<T, E, K extends keyof ResultOpts<T, E>>(kind: K, value: ResultOpts<T, E>[K]) { return {kind, value}; }
+export function makeResult<T, E, K extends keyof ResultOpts<T, E>>(kind: K, value: ResultOpts<T, E>[K]): Result<T,E> { return {kind, value} as Result<T,E>; }
 
 const Result_AST : ADL.ScopedDecl =
   {"decl":{"annotations":[],"name":"Result","type_":{"kind":"union_","value":{"fields":[{"annotations":[],"default":{"kind":"nothing"},"name":"ok","serializedName":"ok","typeExpr":{"parameters":[],"typeRef":{"kind":"typeParam","value":"T"}}},{"annotations":[],"default":{"kind":"nothing"},"name":"error","serializedName":"error","typeExpr":{"parameters":[],"typeRef":{"kind":"typeParam","value":"E"}}}],"typeParams":["T","E"]}},"version":{"kind":"nothing"}},"moduleName":"sys.types"};

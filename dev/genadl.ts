@@ -5,7 +5,7 @@ import {
 async function main() {
   const verbose = false;
 
-  const tsadldir = "./adl-gen";
+  const tsadldir = "./adlgen";
 
   await genTypescript({
     adlModules: [

@@ -1,16 +1,9 @@
-export async function exec(cmd: string, args: string[]): Promise<void> {
-  const command = new Deno.Command(cmd, {
-    args,
-    stdout: "piped",
-    stderr: "piped",
-  });
-
-  const process = command.spawn();
-  process.stdout.pipeTo(Deno.stdout.writable);
-  process.stderr.pipeTo(Deno.stderr.writable);
-
-  const { success } = await process.status;
+/** Run an command and check for success, ignoring output etc */
+async function exec(cmd: string, args: string[]): Promise<void> {
+  const c = new Deno.Command(cmd, {args});
+  const {success, stderr} = await c.output();
   if (!success) {
+    await Deno.stderr.write(stderr);
     throw new Error(`Failed to run cmd: ${cmd} ${args.join(' ')}`);
   }
 }

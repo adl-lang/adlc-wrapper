@@ -1,5 +1,5 @@
-import * as adlast from "../adl-gen/sys/adlast.ts";
-import { ADL as SYSDECLS, RESOLVER } from "../adl-gen/resolver.ts";
+import * as adlast from "../adlgen/sys/adlast.ts";
+import { ADL as SYSDECLS, RESOLVER } from "../adlgen/resolver.ts";
 import { createJsonBinding } from "@adllang/adl-runtime";
 import * as adl from "@adllang/adl-runtime";
 import { typeExprToString } from "@adllang/adl-runtime";
@@ -336,8 +336,8 @@ export function monomorphicName(
  * Returns an empty list if not modules contain the provided annotation.
  */
 
-export function getModuleLevelAnnotation(modules: AdlModuleMap, annotationType: adlast.ScopedName) {
-  return Object.keys(modules).flatMap(mName => {
+export function getModuleLevelAnnotation(modules: AdlModuleMap, annotationType: adlast.ScopedName): {module: adlast.Module, ann: {} | null}[]  {
+   const result = Object.keys(modules).flatMap(mName => {
     const module = modules[mName];
     const ann = getAnnotation(module.annotations, annotationType);
     if (ann === undefined) {
@@ -345,6 +345,7 @@ export function getModuleLevelAnnotation(modules: AdlModuleMap, annotationType: 
     }
     return [{ module, ann }];
   });
+  return result;
 }
 
 
