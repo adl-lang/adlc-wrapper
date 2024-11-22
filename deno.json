@@ -1,5 +1,5 @@
 {
-  "name": "@adllang/adlc-wrapper",
+  "name": "@adllang/adlc-tools",
   "version": "0.1.4",
   "license": "BSD",
   "exports": {
@@ -18,7 +18,7 @@
     "genadl" : "deno run --quiet --allow-all ./dev/genadl.ts"
   },
   "imports": {
-    "@adllang/adl-runtime": "jsr:@adllang/adl-runtime@^0.0.2",
+    "@adllang/adl-runtime": "jsr:@adllang/adl-runtime@^0.1.0",
     "@std/fs": "jsr:@std/fs@^1.0.5",
     "@std/path": "jsr:@std/path@^1.0.8",
     "@std/yaml": "jsr:@std/yaml@^1.0.5"

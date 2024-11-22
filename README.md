@@ -1,1 +1,1 @@
-A deno typescript wrapper of the adl command line compiler.
+A typescript wrapper of the ADL CLI compiler, and support functions for generating code from ADL.

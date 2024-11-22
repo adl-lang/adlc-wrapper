@@ -6,6 +6,8 @@ import { typeExprToString } from "@adllang/adl-runtime";
 import { compilerSourceArgsFromParams, type AdlSourceParams } from "./sources.ts";
 import { execAdlc } from "./exec.ts";
 
+export { scopedName, scopedNamesEqual } from "@adllang/adl-runtime";
+
 export type AdlModuleMap = { [key: string]: adlast.Module };
 
 export interface LoadedAdl {
@@ -358,7 +360,7 @@ export function getAnnotation(
   annotationType: adlast.ScopedName,
 ): {} | null | undefined {
   for (const ann of annotations) {
-    if (scopedNamesEqual(ann.key, annotationType)) {
+    if (adl.scopedNamesEqual(ann.key, annotationType)) {
       return ann.value;
     }
   }
@@ -487,20 +489,6 @@ export function scopedNameFromString(s: string): adlast.ScopedName {
     moduleName: ss.slice(0, ss.length - 1).join("."),
     name: ss[ss.length - 1],
   };
-}
-
-export function scopedName(
-  moduleName: string,
-  name: string,
-): adlast.ScopedName {
-  return { moduleName, name };
-}
-
-export function scopedNamesEqual(
-  n1: adlast.ScopedName,
-  n2: adlast.ScopedName,
-): boolean {
-  return n1.moduleName == n2.moduleName && n1.name == n2.name;
 }
 
 /**
